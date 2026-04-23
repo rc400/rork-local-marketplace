@@ -64,25 +64,39 @@ class VendorDashboardViewModel {
         isTogglingActive = true
         defer { isTogglingActive = false }
 
+        let previousVendor = v
         v.isActive = true
         v.activeUntil = Date().addingTimeInterval(TimeInterval(duration.rawValue) * 3600)
         vendor = v
         appState.currentVendor = v
 
         if !appState.isMockMode {
-            try? await SupabaseService.shared.updateVendor(v)
+            do {
+                try await SupabaseService.shared.updateVendor(v)
+            } catch {
+                vendor = previousVendor
+                appState.currentVendor = previousVendor
+                appState.showToast("Failed to update live status", isError: true)
+            }
         }
     }
 
     func deactivate() async {
         guard var v = vendor else { return }
+        let previousVendor = v
         v.isActive = false
         v.activeUntil = nil
         vendor = v
         appState.currentVendor = v
 
         if !appState.isMockMode {
-            try? await SupabaseService.shared.updateVendor(v)
+            do {
+                try await SupabaseService.shared.updateVendor(v)
+            } catch {
+                vendor = previousVendor
+                appState.currentVendor = previousVendor
+                appState.showToast("Failed to update live status", isError: true)
+            }
         }
     }
 

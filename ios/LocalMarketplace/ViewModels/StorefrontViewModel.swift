@@ -192,20 +192,22 @@ class StorefrontViewModel {
         }
     }
 
-    func saveItem(_ item: MarketplaceItem) async {
+    func saveItem(_ item: MarketplaceItem) async -> Bool {
         if appState.isMockMode {
             if let idx = items.firstIndex(where: { $0.id == item.id }) {
                 items[idx] = item
             } else {
                 items.append(item)
             }
-            return
+            return true
         }
         do {
             try await SupabaseService.shared.createItem(item)
             await loadStorefront(vendorID: vendor?.userID ?? "")
+            return true
         } catch {
             appState.showToast("Failed to save item", isError: true)
+            return false
         }
     }
 
@@ -225,14 +227,28 @@ class StorefrontViewModel {
     }
 
     func bulkMarkSold() {
+        let changedIDs = Array(selectedItemIDs)
         for id in selectedItemIDs {
             if let idx = items.firstIndex(where: { $0.id == id }) {
                 items[idx].status = .sold
                 items[idx].soldAt = Date()
             }
         }
+        let changedItems = items.filter { changedIDs.contains($0.id) }
         appState.showToast("\(selectedItemIDs.count) item(s) marked sold")
         exitBulkMode()
+        if appState.isMockMode { return }
+
+        Task {
+            do {
+                for item in changedItems {
+                    try await SupabaseService.shared.updateItem(item)
+                }
+            } catch {
+                appState.showToast("Failed to save changes", isError: true)
+                await loadStorefront(vendorID: vendor?.userID ?? "")
+            }
+        }
     }
 
     var bulkHideLabel: String {
@@ -248,6 +264,7 @@ class StorefrontViewModel {
     }
 
     func bulkToggleHide() {
+        let changedIDs = Array(selectedItemIDs)
         let selectedItems = items.filter { selectedItemIDs.contains($0.id) }
         let allHidden = selectedItems.allSatisfy { $0.status == .inactive }
 
@@ -266,33 +283,87 @@ class StorefrontViewModel {
             }
             appState.showToast("\(selectedItemIDs.count) item(s) hidden")
         }
+        let changedItems = items.filter { changedIDs.contains($0.id) }
         exitBulkMode()
+        if appState.isMockMode { return }
+
+        Task {
+            do {
+                for item in changedItems {
+                    try await SupabaseService.shared.updateItem(item)
+                }
+            } catch {
+                appState.showToast("Failed to save changes", isError: true)
+                await loadStorefront(vendorID: vendor?.userID ?? "")
+            }
+        }
     }
 
     func bulkHide() {
+        let changedIDs = Array(selectedItemIDs)
         for id in selectedItemIDs {
             if let idx = items.firstIndex(where: { $0.id == id }) {
                 items[idx].status = .inactive
             }
         }
+        let changedItems = items.filter { changedIDs.contains($0.id) }
         appState.showToast("\(selectedItemIDs.count) item(s) hidden")
         exitBulkMode()
+        if appState.isMockMode { return }
+
+        Task {
+            do {
+                for item in changedItems {
+                    try await SupabaseService.shared.updateItem(item)
+                }
+            } catch {
+                appState.showToast("Failed to save changes", isError: true)
+                await loadStorefront(vendorID: vendor?.userID ?? "")
+            }
+        }
     }
 
     func bulkDelete() {
+        let deletedIDs = Array(selectedItemIDs)
         items.removeAll { selectedItemIDs.contains($0.id) }
         appState.showToast("\(selectedItemIDs.count) item(s) deleted")
         exitBulkMode()
+        if appState.isMockMode { return }
+
+        Task {
+            do {
+                for id in deletedIDs {
+                    try await SupabaseService.shared.deleteItem(id: id)
+                }
+            } catch {
+                appState.showToast("Failed to save changes", isError: true)
+                await loadStorefront(vendorID: vendor?.userID ?? "")
+            }
+        }
     }
 
     func bulkMoveToBinder(_ binderID: String) {
+        let changedIDs = Array(selectedItemIDs)
         for id in selectedItemIDs {
             if let idx = items.firstIndex(where: { $0.id == id }) {
                 items[idx].binderID = binderID
             }
         }
+        let changedItems = items.filter { changedIDs.contains($0.id) }
         appState.showToast("\(selectedItemIDs.count) item(s) moved")
         exitBulkMode()
+        if appState.isMockMode { return }
+
+        Task {
+            do {
+                for item in changedItems {
+                    try await SupabaseService.shared.updateItem(item)
+                }
+            } catch {
+                appState.showToast("Failed to save changes", isError: true)
+                await loadStorefront(vendorID: vendor?.userID ?? "")
+            }
+        }
     }
 
     // MARK: - Binder Management
@@ -302,6 +373,17 @@ class StorefrontViewModel {
             binders[idx].isHidden.toggle()
             let hidden = binders[idx].isHidden
             appState.showToast(hidden ? "Binder hidden" : "Binder visible")
+            if appState.isMockMode { return }
+
+            let binder = binders[idx]
+            Task {
+                do {
+                    try await SupabaseService.shared.updateBinder(binder)
+                } catch {
+                    appState.showToast("Failed to save changes", isError: true)
+                    await loadStorefront(vendorID: vendor?.userID ?? "")
+                }
+            }
         }
     }
 
@@ -312,6 +394,18 @@ class StorefrontViewModel {
             sorted[index].sortOrder = index
         }
         binders = sorted
+        if appState.isMockMode { return }
+
+        Task {
+            do {
+                for binder in sorted {
+                    try await SupabaseService.shared.updateBinder(binder)
+                }
+            } catch {
+                appState.showToast("Failed to save changes", isError: true)
+                await loadStorefront(vendorID: vendor?.userID ?? "")
+            }
+        }
     }
 
     func deleteBinder(_ binderID: String, moveItemsTo targetBinderID: String?) {
@@ -330,5 +424,22 @@ class StorefrontViewModel {
             binders[index].sortOrder = index
         }
         appState.showToast("Binder deleted")
+        if appState.isMockMode { return }
+
+        Task {
+            do {
+                if targetBinderID != nil {
+                    for item in binderItems {
+                        if let updatedItem = items.first(where: { $0.id == item.id }) {
+                            try await SupabaseService.shared.updateItem(updatedItem)
+                        }
+                    }
+                }
+                try await SupabaseService.shared.deleteBinder(id: binderID)
+            } catch {
+                appState.showToast("Failed to save changes", isError: true)
+                await loadStorefront(vendorID: vendor?.userID ?? "")
+            }
+        }
     }
 }

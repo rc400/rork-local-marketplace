@@ -109,15 +109,23 @@ struct VendorApplicationFormView: View {
                 "source": source
             ]
         )
-        appState.vendorApplication = application
 
-        if !appState.isMockMode {
-            Task {
-                try? await SupabaseService.shared.submitVendorApplication(application)
-            }
+        if appState.isMockMode {
+            appState.vendorApplication = application
+            appState.showToast("Application submitted!")
+            onComplete()
+            return
         }
 
-        appState.showToast("Application submitted!")
-        onComplete()
+        Task {
+            do {
+                try await SupabaseService.shared.submitVendorApplication(application)
+                appState.vendorApplication = application
+                appState.showToast("Application submitted!")
+                onComplete()
+            } catch {
+                appState.showToast("Failed to submit application", isError: true)
+            }
+        }
     }
 }

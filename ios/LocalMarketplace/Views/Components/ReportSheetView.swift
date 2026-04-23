@@ -54,7 +54,32 @@ struct ReportSheetView: View {
     }
 
     private func submitReport() {
-        appState.showToast("Report submitted")
-        dismiss()
+        guard let reporterID = appState.currentUser?.id else {
+            appState.showToast("Failed to submit report", isError: true)
+            return
+        }
+
+        let report = Report(
+            id: UUID().uuidString,
+            reporterID: reporterID,
+            reportedUserID: reportedUserID,
+            reportedVendorID: reportedVendorID,
+            conversationID: conversationID,
+            reason: reason,
+            details: details.isEmpty ? nil : details,
+            status: .open,
+            createdAt: Date(),
+            updatedAt: Date()
+        )
+
+        Task {
+            do {
+                try await SupabaseService.shared.submitReport(report)
+                appState.showToast("Report submitted")
+                dismiss()
+            } catch {
+                appState.showToast("Failed to submit report", isError: true)
+            }
+        }
     }
 }

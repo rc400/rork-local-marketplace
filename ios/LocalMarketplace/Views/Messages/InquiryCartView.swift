@@ -51,12 +51,14 @@ struct InquiryCartView: View {
 
                     Button {
                         Task {
-                            await messagesVM.sendInquiry(
+                            let didSend = await messagesVM.sendInquiry(
                                 otherUserID: viewModel.vendor?.userID ?? "",
                                 cartMessage: viewModel.cartSummaryMessage
                             )
-                            viewModel.clearCart()
-                            dismiss()
+                            if didSend {
+                                viewModel.clearCart()
+                                dismiss()
+                            }
                         }
                     } label: {
                         Text("Send Inquiry")

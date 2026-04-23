@@ -82,8 +82,8 @@ class MessagesViewModel {
         }
     }
 
-    func sendInquiry(otherUserID: String, cartMessage: String) async {
-        guard let user = appState.currentUser else { return }
+    func sendInquiry(otherUserID: String, cartMessage: String) async -> Bool {
+        guard let user = appState.currentUser else { return false }
 
         if appState.isMockMode {
             let conv = Conversation(
@@ -96,7 +96,7 @@ class MessagesViewModel {
             )
             conversations.insert(conv, at: 0)
             appState.showToast("Inquiry sent!")
-            return
+            return true
         }
 
         do {
@@ -104,8 +104,10 @@ class MessagesViewModel {
             let message = Message(id: UUID().uuidString, conversationID: conversation.id, senderID: user.id, body: cartMessage, createdAt: Date())
             try await SupabaseService.shared.sendMessage(message)
             appState.showToast("Inquiry sent!")
+            return true
         } catch {
             appState.showToast("Failed to send inquiry", isError: true)
+            return false
         }
     }
 

@@ -349,14 +349,25 @@ struct CreateItemView: View {
         let itemID = UUID().uuidString
 
         Task {
+            defer { isSaving = false }
             var img1URL: String?
             var img2URL: String?
 
             if let data = image1Data, !viewModel.appState.isMockMode {
-                img1URL = try? await SupabaseService.shared.uploadImage(bucket: "items", folder: itemID, imageData: data)
+                do {
+                    img1URL = try await SupabaseService.shared.uploadImage(bucket: "items", folder: itemID, imageData: data)
+                } catch {
+                    viewModel.appState.showToast("Failed to upload image", isError: true)
+                    return
+                }
             }
             if let data = image2Data, !viewModel.appState.isMockMode {
-                img2URL = try? await SupabaseService.shared.uploadImage(bucket: "items", folder: "\(itemID)/back", imageData: data)
+                do {
+                    img2URL = try await SupabaseService.shared.uploadImage(bucket: "items", folder: "\(itemID)/back", imageData: data)
+                } catch {
+                    viewModel.appState.showToast("Failed to upload image", isError: true)
+                    return
+                }
             }
 
             let item = MarketplaceItem(
@@ -381,9 +392,9 @@ struct CreateItemView: View {
                 slabCompanyOther: category == .slab && slabCompany == .other ? slabCompanyOther.trimmingCharacters(in: .whitespaces) : nil,
                 quantity: quantity
             )
-            await viewModel.saveItem(item)
-            isSaving = false
-            dismiss()
+            if await viewModel.saveItem(item) {
+                dismiss()
+            }
         }
     }
 }
