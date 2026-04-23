@@ -63,6 +63,12 @@ nonisolated enum SupabaseAPIError: Error, LocalizedError, Sendable {
 class SupabaseClient {
     static let shared = SupabaseClient()
 
+    private enum SessionStorageKeys {
+        static let accessToken = "lm_access_token"
+        static let refreshToken = "lm_refresh_token"
+        static let userID = "lm_user_id"
+    }
+
     private(set) var accessToken: String?
     private(set) var refreshToken: String?
     private(set) var currentUserID: String?
@@ -109,6 +115,7 @@ class SupabaseClient {
             accessToken = session.accessToken
             refreshToken = session.refreshToken
             currentUserID = session.user.id
+            persistSession()
             return .session(session)
         }
 
@@ -139,6 +146,7 @@ class SupabaseClient {
         accessToken = session.accessToken
         refreshToken = session.refreshToken
         currentUserID = session.user.id
+        persistSession()
         return session
     }
 
@@ -149,6 +157,23 @@ class SupabaseClient {
         accessToken = nil
         refreshToken = nil
         currentUserID = nil
+        clearSession()
+    }
+
+    func restoreSession() -> Bool {
+        let defaults = UserDefaults.standard
+        guard
+            let accessToken = defaults.string(forKey: SessionStorageKeys.accessToken),
+            let refreshToken = defaults.string(forKey: SessionStorageKeys.refreshToken),
+            let currentUserID = defaults.string(forKey: SessionStorageKeys.userID)
+        else {
+            return false
+        }
+
+        self.accessToken = accessToken
+        self.refreshToken = refreshToken
+        self.currentUserID = currentUserID
+        return true
     }
 
     func select<T: Decodable & Sendable>(_ table: String, columns: String = "*", filters: [String] = [], order: String? = nil) async throws -> [T] {
@@ -238,5 +263,19 @@ class SupabaseClient {
         var c = URLComponents()
         c.queryItems = items
         return "?" + (c.query ?? "")
+    }
+
+    private func persistSession() {
+        let defaults = UserDefaults.standard
+        defaults.set(accessToken, forKey: SessionStorageKeys.accessToken)
+        defaults.set(refreshToken, forKey: SessionStorageKeys.refreshToken)
+        defaults.set(currentUserID, forKey: SessionStorageKeys.userID)
+    }
+
+    private func clearSession() {
+        let defaults = UserDefaults.standard
+        defaults.removeObject(forKey: SessionStorageKeys.accessToken)
+        defaults.removeObject(forKey: SessionStorageKeys.refreshToken)
+        defaults.removeObject(forKey: SessionStorageKeys.userID)
     }
 }

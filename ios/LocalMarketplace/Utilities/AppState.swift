@@ -9,6 +9,7 @@ class AppState {
     var currentVendor: Vendor?
     var vendorApplication: VendorApplication?
     var isLoading: Bool = false
+    var isRestoringSession: Bool = false
     var toastMessage: String?
     var toastIsError: Bool = false
     var showNewAccountBanner: Bool = false
@@ -84,6 +85,30 @@ class AppState {
         currentUser = nil
         currentVendor = nil
         vendorApplication = nil
+    }
+
+    func restoreSession() async {
+        guard !isMockMode else { return }
+
+        isRestoringSession = true
+        defer { isRestoringSession = false }
+
+        guard SupabaseClient.shared.restoreSession() else { return }
+
+        do {
+            let user = try await SupabaseService.shared.fetchCurrentUser()
+            currentUser = user
+
+            if user.role == .vendor {
+                currentVendor = try await SupabaseService.shared.fetchVendor(userID: user.id)
+            } else {
+                currentVendor = nil
+            }
+
+            isAuthenticated = true
+        } catch {
+            signOut()
+        }
     }
 
     func deleteAccount() async {

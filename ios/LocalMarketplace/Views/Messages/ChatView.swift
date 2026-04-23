@@ -1,21 +1,21 @@
 import SwiftUI
 
 struct ChatView: View {
-    let conversationID: String?
     let otherUserID: String
     let otherUserName: String
     let appState: AppState
 
     @State private var viewModel: MessagesViewModel
+    @State private var activeConversationID: String?
     @State private var showReportSheet = false
     @State private var showBlockAlert = false
 
     init(conversationID: String?, otherUserID: String, otherUserName: String, appState: AppState) {
-        self.conversationID = conversationID
         self.otherUserID = otherUserID
         self.otherUserName = otherUserName
         self.appState = appState
         _viewModel = State(initialValue: MessagesViewModel(appState: appState))
+        _activeConversationID = State(initialValue: conversationID)
     }
 
     var body: some View {
@@ -74,13 +74,13 @@ struct ChatView: View {
                 }
             }
         }
-        .task {
-            if let id = conversationID {
+        .task(id: activeConversationID) {
+            if let id = activeConversationID {
                 await viewModel.loadMessages(conversationID: id)
             }
         }
         .sheet(isPresented: $showReportSheet) {
-            ReportSheetView(reportedUserID: otherUserID, conversationID: conversationID, appState: appState)
+            ReportSheetView(reportedUserID: otherUserID, conversationID: activeConversationID, appState: appState)
         }
         .alert("Block User?", isPresented: $showBlockAlert) {
             Button("Block", role: .destructive) {
@@ -105,7 +105,13 @@ struct ChatView: View {
 
             Button {
                 Task {
-                    await viewModel.sendMessage(conversationID: conversationID ?? "new-\(otherUserID)")
+                    if activeConversationID == nil {
+                        let conversation = await viewModel.startConversation(with: otherUserID)
+                        activeConversationID = conversation?.id
+                    }
+
+                    let messageConversationID = activeConversationID ?? "new-\(otherUserID)"
+                    await viewModel.sendMessage(conversationID: messageConversationID)
                 }
             } label: {
                 Image(systemName: "arrow.up.circle.fill")

@@ -49,10 +49,22 @@ class MessagesViewModel {
 
     func sendMessage(conversationID: String) async {
         guard let user = appState.currentUser, !messageText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+        var resolvedConversationID = conversationID
+
+        if conversationID.hasPrefix("new-") {
+            let otherUserID = String(conversationID.dropFirst(4))
+            do {
+                let conversation = try await SupabaseService.shared.fetchOrCreateConversation(currentUserID: user.id, otherUserID: otherUserID)
+                resolvedConversationID = conversation.id
+            } catch {
+                appState.showToast("Failed to start conversation", isError: true)
+                return
+            }
+        }
 
         let message = Message(
             id: UUID().uuidString,
-            conversationID: conversationID,
+            conversationID: resolvedConversationID,
             senderID: user.id,
             body: messageText.trimmingCharacters(in: .whitespacesAndNewlines),
             createdAt: Date()

@@ -47,6 +47,18 @@ class SupabaseService {
         try await client.signOut()
     }
 
+    func fetchCurrentUser() async throws -> UserProfile {
+        guard let userID = client.currentUserID else {
+            throw SupabaseAPIError.notAuthenticated
+        }
+
+        guard let profile: UserProfile = try await client.selectSingle("profiles", filters: ["id=eq.\(userID)"]) else {
+            throw SupabaseAPIError.httpError(404, "Profile not found")
+        }
+
+        return profile
+    }
+
     func deleteAccount(userID: String) async throws {
         try await client.update("profiles", body: encoder.encode(["is_deleted": true]), filters: ["id=eq.\(userID)"])
     }

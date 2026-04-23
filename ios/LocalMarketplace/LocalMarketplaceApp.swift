@@ -6,8 +6,20 @@ struct LocalMarketplaceApp: App {
 
     var body: some Scene {
         WindowGroup {
-            ContentView()
-                .environment(appState)
+            ZStack {
+                ContentView()
+                    .environment(appState)
+
+                if appState.isRestoringSession {
+                    ProgressView()
+                        .controlSize(.large)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .background(.background)
+                }
+            }
+            .task {
+                await appState.restoreSession()
+            }
         }
     }
 }
