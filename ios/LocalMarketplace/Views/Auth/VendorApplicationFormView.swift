@@ -60,13 +60,6 @@ struct VendorApplicationFormView: View {
             }
             .scrollDismissesKeyboard(.interactively)
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Skip for Now") {
-                        onComplete()
-                    }
-                }
-            }
         }
     }
 
@@ -104,6 +97,7 @@ struct VendorApplicationFormView: View {
             contactEmail: contactEmail,
             contactPhone: contactPhone,
             answersJSON: [
+                "legal_name": legalName,
                 "experience": experience,
                 "why_sell": whySell,
                 "source": source
@@ -120,6 +114,18 @@ struct VendorApplicationFormView: View {
         Task {
             do {
                 try await SupabaseService.shared.submitVendorApplication(application)
+                // Create vendor record immediately (unapproved) so storefront works
+                let vendor = Vendor(
+                    userID: user.id,
+                    storeName: "",
+                    categories: [],
+                    meetupAddress: "",
+                    approved: false,
+                    isDisabled: false,
+                    isActive: false
+                )
+                try await SupabaseService.shared.createVendor(vendor)
+                appState.currentVendor = vendor
                 appState.vendorApplication = application
                 appState.showToast("Application submitted!")
                 onComplete()

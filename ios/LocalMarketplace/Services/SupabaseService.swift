@@ -100,6 +100,11 @@ class SupabaseService {
         _ = try await client.insert("vendor_applications", body: body)
     }
 
+    func createVendor(_ vendor: Vendor) async throws {
+        let body = try Self.jsonEncoder.encode(vendor)
+        _ = try await client.insert("vendors", body: body)
+    }
+
     func fetchVendorApplications(status: ApplicationStatus?) async throws -> [VendorApplication] {
         var filters: [String] = []
         if let status { filters.append("status=eq.\(status.rawValue)") }
@@ -116,9 +121,8 @@ class SupabaseService {
             let apps: [VendorApplication] = try await client.select("vendor_applications", filters: ["id=eq.\(id)"])
             if let app = apps.first {
                 try await client.update("profiles", body: JSONSerialization.data(withJSONObject: ["role": "vendor"]), filters: ["id=eq.\(app.userID)"])
-                let vendor = Vendor(userID: app.userID, storeName: "", categories: [], meetupAddress: "", approved: true, isDisabled: false, isActive: false)
-                let vendorBody = try encoder.encode(vendor)
-                _ = try await client.insert("vendors", body: vendorBody)
+                let approveBody = try JSONSerialization.data(withJSONObject: ["approved": true])
+                try await client.update("vendors", body: approveBody, filters: ["user_id=eq.\(app.userID)"])
             }
         }
     }
