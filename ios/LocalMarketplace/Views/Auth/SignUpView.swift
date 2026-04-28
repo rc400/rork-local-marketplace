@@ -100,7 +100,23 @@ struct SignUpView: View {
                             roleCard(role: .buyer, icon: "bag.fill", label: "Buy")
                             roleCard(role: .vendor, icon: "storefront.fill", label: "Sell")
                         }
+
+                        if selectedRole == .vendor {
+                            HStack(alignment: .top, spacing: 8) {
+                                Image(systemName: "info.circle.fill")
+                                    .foregroundStyle(.teal)
+                                    .font(.subheadline)
+                                Text("A Vendor Application will follow and takes about 5–10 minutes to complete. Your account won't be created unless the application is filled out.")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            .padding(12)
+                            .background(Color.teal.opacity(0.08))
+                            .clipShape(.rect(cornerRadius: 10))
+                            .transition(.opacity.combined(with: .move(edge: .top)))
+                        }
                     }
+                    .animation(.snappy, value: selectedRole)
 
                     Button {
                         focusedField = nil

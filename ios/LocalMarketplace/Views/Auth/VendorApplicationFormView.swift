@@ -6,15 +6,20 @@ struct VendorApplicationFormView: View {
 
     var onComplete: () -> Void
 
-    @State private var legalName = ""
+    @State private var legalFirstName = ""
+    @State private var legalLastName = ""
+    @State private var businessName = ""
     @State private var contactEmail = ""
     @State private var contactPhone = ""
-    @State private var experience = ""
+    @State private var cityRegion = ""
+    @State private var whatDoYouSell = ""
+    @State private var cardShowFrequency = ""
+    @State private var socialMedia = ""
     @State private var whySell = ""
-    @State private var source = ""
+    @State private var agreedToTerms = false
 
     private var isValid: Bool {
-        !legalName.isEmpty && !contactEmail.isEmpty
+        !legalFirstName.isEmpty && !legalLastName.isEmpty && !contactEmail.isEmpty && !cityRegion.isEmpty && !whatDoYouSell.isEmpty && !whySell.isEmpty && agreedToTerms
     }
 
     var body: some View {
@@ -35,12 +40,33 @@ struct VendorApplicationFormView: View {
                     .padding(.top, 8)
 
                     VStack(spacing: 16) {
-                        fieldSection(title: "Legal / Business Name", placeholder: "Your name or business name", text: $legalName)
+                        HStack(spacing: 12) {
+                            fieldSection(title: "First Name", placeholder: "First", text: $legalFirstName)
+                            fieldSection(title: "Last Name", placeholder: "Last", text: $legalLastName)
+                        }
+
+                        fieldSection(title: "Business Name (Optional)", placeholder: "Your business name", text: $businessName)
+
                         fieldSection(title: "Contact Email", placeholder: "vendor@example.com", text: $contactEmail, keyboard: .emailAddress)
+
                         fieldSection(title: "Contact Phone", placeholder: "416-555-0100", text: $contactPhone, keyboard: .phonePad)
-                        multilineSection(title: "Selling Experience", placeholder: "Tell us about your experience...", text: $experience)
-                        multilineSection(title: "Why do you want to sell?", placeholder: "What motivates you to sell locally?", text: $whySell)
-                        multilineSection(title: "Where do you source inventory?", placeholder: "Personal collection, wholesale, etc.", text: $source)
+
+                        fieldSection(title: "City / Region", placeholder: "e.g. Toronto, GTA", text: $cityRegion)
+
+                        multilineSection(title: "What do you primarily sell?", placeholder: "e.g. Pokémon singles, sealed product, Japanese imports, graded cards...", text: $whatDoYouSell)
+
+                        multilineSection(title: "How often do you attend card shows?", placeholder: "e.g. Weekly, a few times a month, rarely...", text: $cardShowFrequency)
+
+                        multilineSection(title: "Social media & online presence", placeholder: "Instagram, TikTok, eBay, or any other usernames / links", text: $socialMedia)
+
+                        multilineSection(title: "Why do you want to sell on Local?", placeholder: "What motivates you to sell locally?", text: $whySell)
+
+                        Toggle(isOn: $agreedToTerms) {
+                            Text("I agree to the Terms of Service")
+                                .font(.subheadline)
+                        }
+                        .tint(.teal)
+                        .padding(.top, 4)
                     }
 
                     Button {
@@ -97,10 +123,16 @@ struct VendorApplicationFormView: View {
             contactEmail: contactEmail,
             contactPhone: contactPhone,
             answersJSON: [
-                "legal_name": legalName,
-                "experience": experience,
+                "legal_first_name": legalFirstName,
+                "legal_last_name": legalLastName,
+                "business_name": businessName,
+                "city_region": cityRegion,
+                "what_do_you_sell": whatDoYouSell,
+                "card_show_frequency": cardShowFrequency,
+                "social_media": socialMedia,
                 "why_sell": whySell,
-                "source": source
+                "agreed_to_terms": "true",
+                "submitted_at": ISO8601DateFormatter().string(from: Date())
             ]
         )
 
@@ -114,7 +146,6 @@ struct VendorApplicationFormView: View {
         Task {
             do {
                 try await SupabaseService.shared.submitVendorApplication(application)
-                // Create vendor record immediately (unapproved) so storefront works
                 let vendor = Vendor(
                     userID: user.id,
                     storeName: "",
