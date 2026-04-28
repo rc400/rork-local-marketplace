@@ -1,7 +1,6 @@
 import SwiftUI
 
 struct WelcomeView: View {
-    @Environment(AppState.self) private var appState
     @State private var showSignUp = false
     @State private var showLogin = false
     @State private var animateGradient = false
@@ -72,9 +71,6 @@ struct WelcomeView: View {
                     .tint(.teal)
                     .clipShape(.capsule)
 
-                    if appState.isMockMode {
-                        mockButtons
-                    }
                 }
                 .padding(.horizontal, 24)
                 .padding(.bottom, 32)
@@ -88,28 +84,4 @@ struct WelcomeView: View {
         }
     }
 
-    private var mockButtons: some View {
-        VStack(spacing: 8) {
-            Divider().padding(.vertical, 4)
-            Text("Preview Mode")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-
-            HStack(spacing: 10) {
-                ForEach(UserRole.allCases, id: \.self) { role in
-                    Button {
-                        appState.mockSignIn(as: role)
-                    } label: {
-                        Text(role.displayName)
-                            .font(.caption.weight(.medium))
-                            .padding(.horizontal, 14)
-                            .padding(.vertical, 8)
-                    }
-                    .buttonStyle(.bordered)
-                    .tint(.secondary)
-                    .clipShape(.capsule)
-                }
-            }
-        }
-    }
 }
