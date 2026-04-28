@@ -138,14 +138,14 @@ class PokemonTCGService {
     private func buildScrydexQuery(_ input: String) -> String {
         let normalized = input.replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression)
             .trimmingCharacters(in: .whitespaces)
-            .lowercased()
         let tokens = normalized.split(separator: " ").map(String.init)
 
-        guard !tokens.isEmpty else { return "name:\(input)*" }
+        guard !tokens.isEmpty else { return "\(input) -expansion.is_online_only:true" }
 
         var nameParts: [String] = []
         var numberPart: String?
 
+        // Check if the last token looks like a card number
         let lastToken = tokens[tokens.count - 1]
         if tokens.count > 1, lastToken.contains(where: \.isNumber) {
             if lastToken.contains("/") {
@@ -159,18 +159,23 @@ class PokemonTCGService {
             nameParts = tokens
         }
 
-        let name = nameParts.joined(separator: " ")
+        let nameQuery = nameParts.joined(separator: " ")
 
         var q: String
-        if name.contains(" ") {
-            q = "name:\"\(name)*\""
+        if let num = numberPart {
+            // When user specifies a number, use name: field + number: for precision
+            if nameQuery.contains(" ") {
+                q = "name:\"\(nameQuery)*\" number:\(num)"
+            } else {
+                q = "name:\(nameQuery)* number:\(num)"
+            }
         } else {
-            q = "name:\(name)*"
+            // Plain text search - matches across translations, returns both EN and JA
+            q = nameQuery
         }
 
-        if let num = numberPart {
-            q += " number:\(num)"
-        }
+        // Always exclude digital-only (TCG Pocket) cards
+        q += " -expansion.is_online_only:true"
 
         return q
     }
