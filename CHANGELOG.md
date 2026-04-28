@@ -1,5 +1,66 @@
 # Local Marketplace — Changelog
 
+## Sprint 3 — Live Backend, Card Search, Admin, Vendor Flow, Subscriptions
+
+**Date:** April 28, 2026
+**Commits:** `9b17cf3` through `59f2485` (14 commits)
+
+### Connected to Real Supabase Backend
+- `9b17cf3` — Config.swift populated with Supabase URL and anon key; app no longer falls back to mock data
+- `0e9c06f` — Fixed 3 Swift concurrency warnings (ISO8601DateFormatter `nonisolated(unsafe)`)
+- Removed mock preview buttons (Preview as Buyer/Vendor/Admin) from WelcomeView
+
+### Scrydex Card Search Fixed
+- `1046afd` — Added Scrydex API key and team ID to Config.swift
+- `f6a121b` — Added Japanese card support: `language_code` and `translation` fields on card models; JA cards show English translated names with `[JA]` badge
+- `64b167c` — Fixed search to return both EN and JA cards by using plain text query instead of `name:` prefix; excluded TCG Pocket digital-only cards with `-expansion.is_online_only:true`
+- Saved full Scrydex API docs at `docs/scrydex-api.md`
+
+### Admin System
+- `beff69f` — AdminTabView now has 6 tabs: Home, Storefront, Create, Messages, Admin, Profile (full vendor capabilities + admin panel)
+- Added RLS migration `002_admin_role_policy.sql`: admins can update any profile (for promoting users)
+- Ron's account (`rc400`) promoted to admin
+
+### Vendor Signup Flow Overhaul
+- `af2f8f6` — Phase 1: Removed "Skip for Now" button (application mandatory); fixed legal name bug; vendor row created immediately on application submit with `approved: false`; admin approval now updates existing vendor row instead of insert
+- `5617639` — Fixed application form disappearing: vendor signup delays `isAuthenticated` until application is submitted via `pendingVendorApplication` flag and `completeVendorOnboarding()` method
+- `c186a6c` — Revamped vendor application fields:
+  - First Name + Last Name (separate)
+  - Business Name (optional)
+  - Contact Email, Phone
+  - City / Region
+  - What do you primarily sell?
+  - How often do you attend card shows?
+  - Social media & online presence
+  - Why do you want to sell on Local?
+  - Terms of Service agreement toggle
+  - Auto-timestamp on submission
+- Added info note on signup page when "Sell" is selected: warns vendor application follows, takes 5–10 min
+
+### RevenueCat Subscription Integration
+- `fb8cab9` — Full RevenueCat SDK integration (SPM package: `purchases-ios-spm`)
+  - **SubscriptionService.swift**: RevenueCat wrapper — configure, identify, logout, refresh, entitlement checking for "Local Marketplace Vendor"
+  - **VendorPaywallView.swift**: presents RevenueCat PaywallView with purchase/restore callbacks
+  - **SubscriptionStatusView.swift**: subscription status display + Customer Center for managing subscriptions
+  - **LocalMarketplaceApp.swift**: RevenueCat configured at app launch
+  - **AppState.swift**: RevenueCat identify/logout on all auth events
+  - **VendorDashboardViewModel.swift**: go-live requires active subscription; "Subscribe to go live" message
+  - **VendorActiveCard.swift**: Go Live button shows paywall when subscription needed
+- `cfe3d3f`, `18723f8`, `32946f8` — Build fixes: encoder reference, RevenueCatUI v5 modifier-style callbacks, missing import
+
+### RLS Policy Fixes
+- `59f2485` — Added `003_admin_vendor_policy.sql`: admins can update any vendor row (fixes approval silently failing due to RLS)
+
+### Remaining from Audit (Tier 2 — High)
+- ❌ Search not wired to filtering on home map
+- ❌ Vendor expiry client-only (backend never clears is_active)
+- ❌ N+1 queries in inbox and wanted board
+- ❌ Block user placeholder
+- ❌ Delete account incomplete
+- ❌ Notification toggle not wired
+
+---
+
 ## Sprint 2 — Storefront Persistence, Report Submission, Error Handling
 
 ### `b173693` — Sprint 2: Storefront persistence, report submission, and error handling fixes
