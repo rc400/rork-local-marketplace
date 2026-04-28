@@ -6,19 +6,17 @@ struct VendorPaywallView: View {
     let onSubscribed: () -> Void
 
     var body: some View {
-        PaywallView(
-            displayCloseButton: true,
-            purchaseCompleted: { customerInfo in
+        PaywallView(displayCloseButton: true)
+            .onPurchaseCompleted { customerInfo in
                 onSubscribed()
                 dismiss()
-            },
-            restoreCompleted: { customerInfo in
+            }
+            .onRestoreCompleted { customerInfo in
                 let entitlement = customerInfo.entitlements["Local Marketplace Vendor"]
                 if entitlement?.isActive == true {
                     onSubscribed()
                     dismiss()
                 }
             }
-        )
     }
 }
