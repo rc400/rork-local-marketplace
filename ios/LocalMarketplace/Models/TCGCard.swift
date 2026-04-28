@@ -11,9 +11,39 @@ nonisolated struct TCGCard: Codable, Identifiable, Sendable, Hashable {
     let rarity: String
     let imageSmall: String
     let imageLarge: String
+    let languageCode: String
+
+    init(
+        id: String,
+        name: String,
+        number: String,
+        setName: String,
+        setId: String,
+        releaseDate: String,
+        subtypes: [String],
+        rarity: String,
+        imageSmall: String,
+        imageLarge: String,
+        languageCode: String = "EN"
+    ) {
+        self.id = id
+        self.name = name
+        self.number = number
+        self.setName = setName
+        self.setId = setId
+        self.releaseDate = releaseDate
+        self.subtypes = subtypes
+        self.rarity = rarity
+        self.imageSmall = imageSmall
+        self.imageLarge = imageLarge
+        self.languageCode = languageCode
+    }
 
     var displayName: String {
-        "\(name) \(number)"
+        if languageCode != "EN" {
+            return "\(name) \(number) [\(languageCode)]"
+        }
+        return "\(name) \(number)"
     }
 
     var smallImageURL: URL? {

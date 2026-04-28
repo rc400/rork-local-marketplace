@@ -73,8 +73,7 @@ class PokemonTCGService {
         var components = URLComponents(string: baseURL)
         components?.queryItems = [
             URLQueryItem(name: "q", value: scrydexQuery),
-            URLQueryItem(name: "pageSize", value: "30"),
-            URLQueryItem(name: "select", value: "id,name,number,rarity,images,expansion")
+            URLQueryItem(name: "pageSize", value: "30")
         ]
 
         guard let url = components?.url else {
@@ -104,9 +103,15 @@ class PokemonTCGService {
             let decoded = try JSONDecoder().decode(ScrydexResponse.self, from: data)
             let cards = decoded.data.map { card in
                 let frontImage = card.images?.first { $0.type == "front" } ?? card.images?.first
+                let displayName: String
+                if card.languageCode == "JA", let enName = card.translation?.en?.name {
+                    displayName = enName
+                } else {
+                    displayName = card.name
+                }
                 return TCGCard(
                     id: card.id,
-                    name: card.name,
+                    name: displayName,
                     number: card.number ?? "",
                     setName: card.expansion?.name ?? "",
                     setId: card.expansion?.id ?? "",
@@ -114,7 +119,8 @@ class PokemonTCGService {
                     subtypes: card.subtypes ?? [],
                     rarity: card.rarity ?? "",
                     imageSmall: frontImage?.small ?? "",
-                    imageLarge: frontImage?.large ?? ""
+                    imageLarge: frontImage?.large ?? "",
+                    languageCode: card.languageCode ?? "EN"
                 )
             }
             return .success(cards)
@@ -213,6 +219,25 @@ nonisolated struct ScrydexCard: Codable, Sendable {
     let rarity: String?
     let images: [ScrydexImage]?
     let expansion: ScrydexExpansion?
+    let languageCode: String?
+    let translation: ScrydexTranslation?
+
+    nonisolated enum CodingKeys: String, CodingKey {
+        case id, name, number, subtypes, rarity, images, expansion, translation
+        case languageCode = "language_code"
+    }
+}
+
+nonisolated struct ScrydexTranslation: Codable, Sendable {
+    let en: ScrydexTranslationEN?
+}
+
+nonisolated struct ScrydexTranslationEN: Codable, Sendable {
+    let name: String?
+    let supertype: String?
+    let subtypes: [String]?
+    let types: [String]?
+    let rarity: String?
 }
 
 nonisolated struct ScrydexImage: Codable, Sendable {
@@ -227,9 +252,11 @@ nonisolated struct ScrydexExpansion: Codable, Sendable {
     let name: String?
     let series: String?
     let releaseDate: String?
+    let languageCode: String?
 
     nonisolated enum CodingKeys: String, CodingKey {
         case id, name, series
         case releaseDate = "release_date"
+        case languageCode = "language_code"
     }
 }
