@@ -106,13 +106,11 @@ struct SignUpView: View {
                         focusedField = nil
                         Task {
                             await appState.signUp(email: email, password: password, username: username, role: selectedRole)
-                            if appState.isAuthenticated {
-                                if selectedRole == .vendor {
-                                    showVendorApplication = true
-                                } else {
-                                    appState.showNewAccountBanner = true
-                                    dismiss()
-                                }
+                            if selectedRole == .vendor && appState.pendingVendorApplication {
+                                showVendorApplication = true
+                            } else if appState.isAuthenticated {
+                                appState.showNewAccountBanner = true
+                                dismiss()
                             }
                         }
                     } label: {
@@ -142,7 +140,10 @@ struct SignUpView: View {
                 }
             }
             .fullScreenCover(isPresented: $showVendorApplication) {
-                VendorApplicationFormView(onComplete: { dismiss() })
+                VendorApplicationFormView(onComplete: {
+                    appState.completeVendorOnboarding()
+                    dismiss()
+                })
             }
         }
     }

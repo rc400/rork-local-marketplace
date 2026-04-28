@@ -13,6 +13,7 @@ class AppState {
     var toastMessage: String?
     var toastIsError: Bool = false
     var showNewAccountBanner: Bool = false
+    var pendingVendorApplication: Bool = false
 
     var currentRole: UserRole {
         currentUser?.role ?? .buyer
@@ -71,23 +72,40 @@ class AppState {
 
         if isMockMode {
             currentUser = UserProfile(id: UUID().uuidString, username: username, role: role, isDeleted: false)
-            isAuthenticated = true
-            Task {
-                try? await SubscriptionService.shared.identify(userID: currentUser?.id ?? "")
+            if role == .vendor {
+                pendingVendorApplication = true
+            } else {
+                isAuthenticated = true
+                Task {
+                    try? await SubscriptionService.shared.identify(userID: currentUser?.id ?? "")
+                }
             }
             return
         }
 
         do {
             currentUser = try await SupabaseService.shared.signUp(email: email, password: password, username: username, role: role)
-            isAuthenticated = true
-            Task {
-                try? await SubscriptionService.shared.identify(userID: currentUser?.id ?? "")
+            if role == .vendor {
+                pendingVendorApplication = true
+            } else {
+                isAuthenticated = true
+                Task {
+                    try? await SubscriptionService.shared.identify(userID: currentUser?.id ?? "")
+                }
             }
         } catch let error as SupabaseAPIError {
             showToast(error.localizedDescription, isError: true)
         } catch {
             showToast("Sign up failed: \(error.localizedDescription)", isError: true)
+        }
+    }
+
+    func completeVendorOnboarding() {
+        pendingVendorApplication = false
+        isAuthenticated = true
+        showNewAccountBanner = true
+        Task {
+            try? await SubscriptionService.shared.identify(userID: currentUser?.id ?? "")
         }
     }
 
@@ -97,6 +115,7 @@ class AppState {
             Task { try? await SupabaseService.shared.signOut() }
         }
         isAuthenticated = false
+        pendingVendorApplication = false
         currentUser = nil
         currentVendor = nil
         vendorApplication = nil
