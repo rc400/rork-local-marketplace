@@ -81,9 +81,9 @@ class SupabaseClient {
 
     static var jsonDecoder: JSONDecoder {
         let decoder = JSONDecoder()
-        let fmtFrac = ISO8601DateFormatter()
+        nonisolated(unsafe) let fmtFrac = ISO8601DateFormatter()
         fmtFrac.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        let fmtPlain = ISO8601DateFormatter()
+        nonisolated(unsafe) let fmtPlain = ISO8601DateFormatter()
         fmtPlain.formatOptions = [.withInternetDateTime]
         decoder.dateDecodingStrategy = .custom { decoder in
             let container = try decoder.singleValueContainer()
@@ -97,7 +97,7 @@ class SupabaseClient {
 
     static var jsonEncoder: JSONEncoder {
         let encoder = JSONEncoder()
-        let fmt = ISO8601DateFormatter()
+        nonisolated(unsafe) let fmt = ISO8601DateFormatter()
         fmt.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         encoder.dateEncodingStrategy = .custom { date, encoder in
             var container = encoder.singleValueContainer()
