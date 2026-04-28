@@ -20,11 +20,43 @@ https://api.scrydex.com/pokemon/v1/cards
 GET /pokemon/v1/cards?q=<query>&pageSize=<n>&page=<n>
 ```
 
-### Query Syntax
-- `q=charizard` — simple name search
-- `q=name:charizard*` — wildcard name search
-- `q=name:"charizard ex"*` — multi-word name with wildcard
-- `q=name:charizard* number:4` — name + card number
+### Query Syntax (Lucene-like)
+
+**Plain text vs field search:**
+- `q=charizard` — plain text, searches across ALL fields including translations (returns EN + JA)
+- `q=name:charizard*` — field-specific, only matches literal `name` field (EN only, JA cards have Japanese names)
+- **Use plain text for general search, field syntax only when combining with number/filters**
+
+**Keyword matching:**
+- `name:charizard` — contains "charizard" in name field
+- `name:"venusaur v"` — phrase match
+- `name:charizard subtypes:mega` — AND multiple conditions
+- `name:charizard (subtypes:mega OR subtypes:vmax)` — OR conditions
+
+**Exclusions:**
+- `-types:water` — exclude water types
+- `-expansion.is_online_only:true` — exclude digital-only (TCG Pocket) cards
+
+**Wildcards:**
+- `name:char*` — starts with "char"
+- `name:char*der` — starts with "char", ends with "der"
+
+**Exact match:**
+- `!name:charizard` — name is EXACTLY "charizard"
+
+**Range searches:**
+- `national_pokedex_numbers:[1 TO 151]` — inclusive range
+- `hp:[150 TO *]` — HP >= 150
+- `hp:{100 TO 200}` — exclusive range
+
+**Nested fields:**
+- `expansion.id:sm1` — filter by expansion
+- `attacks.name:Hypnosis` — cards with specific attack
+- `legalities.standard:banned` — legality filter
+
+**Sorting:**
+- `?orderBy=number` — sort by number
+- `?orderBy=name,-number` — name ASC, number DESC
 
 ### Pagination
 - `pageSize` — number of results per page (default 100)

@@ -156,18 +156,46 @@ struct VendorTabView: View {
 struct AdminTabView: View {
     @Environment(AppState.self) private var appState
     @State private var selectedTab = 0
+    @State private var showCreateItem = false
 
     var body: some View {
         TabView(selection: $selectedTab) {
-            Tab("Admin", systemImage: "shield.fill", value: 0) {
+            Tab("Home", systemImage: "map.fill", value: 0) {
+                HomeMapView(appState: appState)
+            }
+
+            Tab("Storefront", systemImage: "storefront.fill", value: 1) {
+                if let user = appState.currentUser {
+                    NavigationStack {
+                        VendorStorefrontView(vendorID: user.id, appState: appState)
+                    }
+                }
+            }
+
+            Tab("Create", systemImage: "plus.circle.fill", value: 2) {
+                Color.clear
+                    .onAppear {
+                        showCreateItem = true
+                        selectedTab = 1
+                    }
+            }
+
+            Tab("Messages", systemImage: "message.fill", value: 3) {
+                InboxView(appState: appState)
+            }
+
+            Tab("Admin", systemImage: "shield.fill", value: 4) {
                 AdminDashboardView(appState: appState)
             }
 
-            Tab("Profile", systemImage: "person.fill", value: 1) {
+            Tab("Profile", systemImage: "person.fill", value: 5) {
                 ProfileView(appState: appState)
             }
         }
         .tint(.teal)
+        .sheet(isPresented: $showCreateItem) {
+            VendorCreateFlow(appState: appState)
+        }
     }
 }
 
