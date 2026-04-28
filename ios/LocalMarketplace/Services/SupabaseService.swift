@@ -101,7 +101,7 @@ class SupabaseService {
     }
 
     func createVendor(_ vendor: Vendor) async throws {
-        let body = try Self.jsonEncoder.encode(vendor)
+        let body = try encoder.encode(vendor)
         _ = try await client.insert("vendors", body: body)
     }
 
