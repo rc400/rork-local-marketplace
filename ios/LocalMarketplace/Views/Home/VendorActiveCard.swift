@@ -1,10 +1,13 @@
 import SwiftUI
+import RevenueCatUI
 
 struct VendorActiveCard: View {
     let appState: AppState
     @State private var viewModel: VendorDashboardViewModel
     @State private var showDurationPicker = false
     @State private var showMissingItemsAlert = false
+    @State private var showPaywall = false
+
     init(appState: AppState) {
         self.appState = appState
         _viewModel = State(initialValue: VendorDashboardViewModel(appState: appState))
@@ -44,7 +47,9 @@ struct VendorActiveCard: View {
                     .clipShape(.capsule)
                 } else {
                     Button {
-                        if !viewModel.canToggleActive {
+                        if viewModel.canRequestSubscription {
+                            showPaywall = true
+                        } else if !viewModel.canToggleActive {
                             if !viewModel.hasActiveItems {
                                 showMissingItemsAlert = true
                             }
@@ -60,7 +65,15 @@ struct VendorActiveCard: View {
                     .buttonStyle(.borderedProminent)
                     .tint(.teal)
                     .clipShape(.capsule)
-                    .disabled(!viewModel.canToggleActive && viewModel.hasActiveItems)
+                    .disabled(!viewModel.canToggleActive && viewModel.hasActiveItems && !viewModel.canRequestSubscription)
+                    .sheet(isPresented: $showPaywall) {
+                        VendorPaywallView(onSubscribed: {
+                            Task {
+                                await SubscriptionService.shared.refreshStatus()
+                                await viewModel.loadVendorState()
+                            }
+                        })
+                    }
                 }
             }
         }

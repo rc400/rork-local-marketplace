@@ -18,7 +18,22 @@ class VendorDashboardViewModel {
 
     var canToggleActive: Bool {
         guard let v = vendor else { return false }
-        return v.approved && !v.isDisabled && v.hasRequiredFields && hasActiveItems
+        return v.approved && !v.isDisabled && v.hasRequiredFields && hasActiveItems && SubscriptionService.shared.isSubscribed
+    }
+
+    var canRequestSubscription: Bool {
+        guard let v = vendor else { return false }
+        return v.approved && !v.isDisabled && v.hasRequiredFields && hasActiveItems && !SubscriptionService.shared.isSubscribed
+    }
+
+    var goLiveBlockedReason: String {
+        if !SubscriptionService.shared.isSubscribed { return "Subscribe to go live" }
+        guard let v = vendor else { return "" }
+        if v.isDisabled { return "Your account has been disabled by an admin." }
+        if !v.approved { return "Pending approval" }
+        if !v.hasRequiredFields { return "Complete your storefront to go active" }
+        if !hasActiveItems { return "Add at least one active item to go live" }
+        return ""
     }
 
     var statusMessage: String {
@@ -27,6 +42,7 @@ class VendorDashboardViewModel {
         if !v.approved { return "Pending approval" }
         if !v.hasRequiredFields { return "Complete your storefront to go active" }
         if !hasActiveItems { return "Add at least one active item to go live" }
+        if !SubscriptionService.shared.isSubscribed { return "Subscribe to go live" }
         if v.isActive {
             if let until = v.activeUntil {
                 let formatter = RelativeDateTimeFormatter()

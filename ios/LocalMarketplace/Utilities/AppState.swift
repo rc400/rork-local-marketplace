@@ -43,6 +43,10 @@ class AppState {
                 currentVendor = MockDataService.shared.vendor(for: user.id)
             }
             isAuthenticated = true
+            Task {
+                try? await SubscriptionService.shared.identify(userID: currentUser?.id ?? "")
+                await SubscriptionService.shared.refreshStatus()
+            }
             return
         }
 
@@ -52,6 +56,10 @@ class AppState {
                 currentVendor = try await SupabaseService.shared.fetchVendor(userID: currentUser!.id)
             }
             isAuthenticated = true
+            Task {
+                try? await SubscriptionService.shared.identify(userID: currentUser?.id ?? "")
+                await SubscriptionService.shared.refreshStatus()
+            }
         } catch {
             showToast("Sign in failed. Please try again.", isError: true)
         }
@@ -64,12 +72,18 @@ class AppState {
         if isMockMode {
             currentUser = UserProfile(id: UUID().uuidString, username: username, role: role, isDeleted: false)
             isAuthenticated = true
+            Task {
+                try? await SubscriptionService.shared.identify(userID: currentUser?.id ?? "")
+            }
             return
         }
 
         do {
             currentUser = try await SupabaseService.shared.signUp(email: email, password: password, username: username, role: role)
             isAuthenticated = true
+            Task {
+                try? await SubscriptionService.shared.identify(userID: currentUser?.id ?? "")
+            }
         } catch let error as SupabaseAPIError {
             showToast(error.localizedDescription, isError: true)
         } catch {
@@ -78,6 +92,7 @@ class AppState {
     }
 
     func signOut() {
+        Task { try? await SubscriptionService.shared.logout() }
         if !isMockMode {
             Task { try? await SupabaseService.shared.signOut() }
         }
@@ -106,6 +121,10 @@ class AppState {
             }
 
             isAuthenticated = true
+            Task {
+                try? await SubscriptionService.shared.identify(userID: currentUser?.id ?? "")
+                await SubscriptionService.shared.refreshStatus()
+            }
         } catch {
             signOut()
         }
@@ -129,5 +148,9 @@ class AppState {
             vendorApplication = VendorApplication(id: "app-mock", userID: user.id, status: .approved, contactEmail: "vendor@example.com", contactPhone: "416-555-0100", answersJSON: [:])
         }
         isAuthenticated = true
+        Task {
+            try? await SubscriptionService.shared.identify(userID: currentUser?.id ?? "")
+            await SubscriptionService.shared.refreshStatus()
+        }
     }
 }

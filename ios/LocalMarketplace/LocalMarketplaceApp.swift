@@ -1,8 +1,13 @@
 import SwiftUI
+import RevenueCat
 
 @main
 struct LocalMarketplaceApp: App {
     @State private var appState = AppState()
+
+    init() {
+        SubscriptionService.shared.configure(appUserID: nil)
+    }
 
     var body: some Scene {
         WindowGroup {
