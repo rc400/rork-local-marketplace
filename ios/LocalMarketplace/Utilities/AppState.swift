@@ -157,6 +157,7 @@ class AppState {
         if !isMockMode {
             try? await SupabaseService.shared.deleteAccount(userID: user.id)
         }
+        Task { try? await SubscriptionService.shared.logout() }
         signOut()
     }
 

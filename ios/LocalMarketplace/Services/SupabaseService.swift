@@ -60,7 +60,22 @@ class SupabaseService {
     }
 
     func deleteAccount(userID: String) async throws {
-        try await client.update("profiles", body: encoder.encode(["is_deleted": true]), filters: ["id=eq.\(userID)"])
+        try? await client.delete("messages", filters: ["sender_id=eq.\(userID)"])
+        try? await client.delete("conversations", filters: ["participant1_id=eq.\(userID)"])
+        try? await client.delete("conversations", filters: ["participant2_id=eq.\(userID)"])
+        try? await client.delete("wanted_cards", filters: ["user_id=eq.\(userID)"])
+        try? await client.delete("follows", filters: ["follower_id=eq.\(userID)"])
+        try? await client.delete("follows", filters: ["vendor_id=eq.\(userID)"])
+        try? await client.delete("blocks", filters: ["blocker_id=eq.\(userID)"])
+        try? await client.delete("blocks", filters: ["blocked_id=eq.\(userID)"])
+        try? await client.delete("reports", filters: ["reporter_id=eq.\(userID)"])
+        try? await client.delete("notification_prefs", filters: ["user_id=eq.\(userID)"])
+        try? await client.delete("items", filters: ["vendor_id=eq.\(userID)"])
+        try? await client.delete("binders", filters: ["vendor_id=eq.\(userID)"])
+        try? await client.delete("vendors", filters: ["user_id=eq.\(userID)"])
+        try? await client.delete("vendor_applications", filters: ["user_id=eq.\(userID)"])
+        try await client.delete("profiles", filters: ["id=eq.\(userID)"])
+        try? await client.signOut()
     }
 
     func fetchProfile(userID: String) async throws -> UserProfile {
@@ -137,7 +152,16 @@ class SupabaseService {
     }
 
     func fetchActiveVendors() async throws -> [Vendor] {
-        try await client.select("vendors", filters: ["approved=eq.true", "is_active=eq.true", "is_disabled=eq.false"])
+        let vendors: [Vendor] = try await client.select("vendors", filters: ["approved=eq.true", "is_active=eq.true", "is_disabled=eq.false"])
+        return vendors.filter { vendor in
+            guard let until = vendor.activeUntil else { return true }
+            return until > Date()
+        }
+    }
+
+    func updateVendorActiveStatus(userID: String, isActive: Bool) async throws {
+        let body = try JSONSerialization.data(withJSONObject: ["is_active": isActive])
+        try await client.update("vendors", body: body, filters: ["user_id=eq.\(userID)"])
     }
 
     func fetchBinders(vendorID: String) async throws -> [Binder] {
@@ -200,6 +224,7 @@ class SupabaseService {
     }
 
     func fetchConversations(userID: String) async throws -> [Conversation] {
+        // TODO: Batch profile and last-message lookups to avoid N+1 queries.
         let asP1: [Conversation] = try await client.select("conversations", filters: ["participant1_id=eq.\(userID)"], order: "updated_at.desc.nullslast")
         let asP2: [Conversation] = try await client.select("conversations", filters: ["participant2_id=eq.\(userID)"], order: "updated_at.desc.nullslast")
 
@@ -304,6 +329,7 @@ class SupabaseService {
     }
 
     func fetchWantedCards() async throws -> [WantedCard] {
+        // TODO: Batch owner profile lookups to avoid N+1 queries.
         var cards: [WantedCard] = try await client.select("wanted_cards", order: "created_at.desc")
         for i in cards.indices {
             if let profile: UserProfile = try? await client.selectSingle("profiles", filters: ["id=eq.\(cards[i].userID)"]) {

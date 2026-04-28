@@ -84,7 +84,15 @@ struct ChatView: View {
         }
         .alert("Block User?", isPresented: $showBlockAlert) {
             Button("Block", role: .destructive) {
-                appState.showToast("User blocked")
+                guard let currentUser = appState.currentUser else { return }
+                Task {
+                    do {
+                        try await SupabaseService.shared.blockUser(blockerID: currentUser.id, blockedID: otherUserID)
+                        appState.showToast("User blocked")
+                    } catch {
+                        appState.showToast("Failed to block user", isError: true)
+                    }
+                }
             }
             Button("Cancel", role: .cancel) {}
         } message: {

@@ -7,7 +7,6 @@ struct HomeMapView: View {
     @State private var locationService = LocationService()
     @State private var showVendorPreview = false
     @State private var showCardShowPreview = false
-    @State private var searchText = ""
     @State private var selectedStorefrontVendor: Vendor?
     @State private var cardShowViewModel: CardShowViewModel
 
@@ -52,10 +51,13 @@ struct HomeMapView: View {
                     }
                 }
             }
-            .searchable(text: $searchText, prompt: "Search city or address")
+            .searchable(text: Binding(
+                get: { viewModel.searchText },
+                set: { viewModel.searchText = $0 }
+            ), prompt: "Search city or address")
             .onSubmit(of: .search) {
                 Task {
-                    if let coord = await locationService.geocodeAddress(searchText) {
+                    if let coord = await locationService.geocodeAddress(viewModel.searchText) {
                         viewModel.centerOnLocation(coord)
                     }
                 }

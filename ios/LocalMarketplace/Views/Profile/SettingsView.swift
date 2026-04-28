@@ -4,19 +4,13 @@ struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(AppState.self) private var appState
 
-    @State private var pushEnabled = false
     @State private var showDeleteAlert = false
     @State private var showSignOutAlert = false
 
     var body: some View {
         NavigationStack {
             List {
-                Section("Notifications") {
-                    Toggle(isOn: $pushEnabled) {
-                        Label("Push Notifications", systemImage: "bell.fill")
-                    }
-                    .tint(.teal)
-                }
+                // TODO: Add push notification settings when push is implemented
 
                 Section("Account") {
                     Button {

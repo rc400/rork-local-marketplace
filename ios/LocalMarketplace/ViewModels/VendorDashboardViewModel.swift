@@ -122,5 +122,10 @@ class VendorDashboardViewModel {
         v.activeUntil = nil
         vendor = v
         appState.currentVendor = v
+        if !appState.isMockMode {
+            Task {
+                try? await SupabaseService.shared.updateVendorActiveStatus(userID: v.userID, isActive: false)
+            }
+        }
     }
 }

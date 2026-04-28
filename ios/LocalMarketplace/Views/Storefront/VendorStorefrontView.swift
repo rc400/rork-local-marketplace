@@ -145,7 +145,15 @@ struct VendorStorefrontView: View {
         }
         .alert("Block Vendor?", isPresented: $showBlockAlert) {
             Button("Block", role: .destructive) {
-                appState.showToast("Vendor blocked")
+                guard let currentUser = appState.currentUser else { return }
+                Task {
+                    do {
+                        try await SupabaseService.shared.blockUser(blockerID: currentUser.id, blockedID: vendorID)
+                        appState.showToast("Vendor blocked")
+                    } catch {
+                        appState.showToast("Failed to block vendor", isError: true)
+                    }
+                }
             }
             Button("Cancel", role: .cancel) {}
         } message: {
