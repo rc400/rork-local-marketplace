@@ -40,10 +40,21 @@ nonisolated struct TCGCard: Codable, Identifiable, Sendable, Hashable {
     }
 
     var displayName: String {
-        if languageCode != "EN" {
-            return "\(name) \(number) [\(languageCode)]"
+        let cardIdentifier: String
+        if number.isEmpty {
+            cardIdentifier = ""
+        } else if setId.isEmpty {
+            cardIdentifier = number
+        } else {
+            cardIdentifier = "\(number)/\(setId)"
         }
-        return "\(name) \(number)"
+
+        let baseName = cardIdentifier.isEmpty ? name : "\(name) · \(cardIdentifier)"
+
+        if languageCode != "EN" {
+            return "\(baseName) [\(languageCode)]"
+        }
+        return baseName
     }
 
     var smallImageURL: URL? {

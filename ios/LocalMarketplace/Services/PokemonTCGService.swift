@@ -73,7 +73,8 @@ class PokemonTCGService {
         var components = URLComponents(string: baseURL)
         components?.queryItems = [
             URLQueryItem(name: "q", value: scrydexQuery),
-            URLQueryItem(name: "pageSize", value: "30")
+            URLQueryItem(name: "pageSize", value: "50"),
+            URLQueryItem(name: "orderBy", value: "-expansion.release_date")
         ]
 
         guard let url = components?.url else {
@@ -123,7 +124,7 @@ class PokemonTCGService {
                     languageCode: card.languageCode ?? "EN"
                 )
             }
-            return .success(cards)
+            return .success(sortCardsBySearchPreference(cards))
         } catch is CancellationError {
             return .failure(.cancelled)
         } catch let error as URLError where error.code == .timedOut {
@@ -145,29 +146,22 @@ class PokemonTCGService {
         var nameParts: [String] = []
         var numberPart: String?
 
-        // Check if the last token looks like a card number
-        let lastToken = tokens[tokens.count - 1]
-        if tokens.count > 1, lastToken.contains(where: \.isNumber) {
-            if lastToken.contains("/") {
-                numberPart = String(lastToken.split(separator: "/").first ?? Substring(lastToken))
+        for token in tokens {
+            if let cardNumber = cardNumber(from: token) {
+                numberPart = numberPart ?? cardNumber
             } else {
-                let stripped = lastToken.drop(while: { $0 == "0" })
-                numberPart = stripped.isEmpty ? lastToken : String(stripped)
+                nameParts.append(token)
             }
-            nameParts = Array(tokens.dropLast())
-        } else {
-            nameParts = tokens
         }
 
         let nameQuery = nameParts.joined(separator: " ")
 
         var q: String
         if let num = numberPart {
-            // When user specifies a number, use name: field + number: for precision
-            if nameQuery.contains(" ") {
-                q = "name:\"\(nameQuery)*\" number:\(num)"
+            if nameQuery.isEmpty {
+                q = "number:\(num)"
             } else {
-                q = "name:\(nameQuery)* number:\(num)"
+                q = "\(nameQuery) number:\(num)"
             }
         } else {
             // Plain text search - matches across translations, returns both EN and JA
@@ -178,6 +172,111 @@ class PokemonTCGService {
         q += " -expansion.is_online_only:true"
 
         return q
+    }
+
+    private func cardNumber(from token: String) -> String? {
+        let rawNumber: String
+
+        if token.range(of: #"^\d+$"#, options: .regularExpression) != nil {
+            rawNumber = token
+        } else if token.range(of: #"^\d+/\d+$"#, options: .regularExpression) != nil {
+            rawNumber = String(token.split(separator: "/", maxSplits: 1).first ?? "")
+        } else if token.range(of: #"^#\d+$"#, options: .regularExpression) != nil {
+            rawNumber = String(token.dropFirst())
+        } else {
+            return nil
+        }
+
+        return stripLeadingZeros(from: rawNumber)
+    }
+
+    private func stripLeadingZeros(from number: String) -> String {
+        let stripped = number.drop(while: { $0 == "0" })
+        return stripped.isEmpty ? "0" : String(stripped)
+    }
+
+    private func sortCardsBySearchPreference(_ cards: [TCGCard]) -> [TCGCard] {
+        cards.enumerated().sorted { lhs, rhs in
+            let left = lhs.element
+            let right = rhs.element
+
+            if left.releaseDate != right.releaseDate {
+                return left.releaseDate > right.releaseDate
+            }
+
+            let leftTier = rarityTier(left.rarity)
+            let rightTier = rarityTier(right.rarity)
+            if leftTier != rightTier {
+                return leftTier < rightTier
+            }
+
+            let sameNameAndSet = left.name.localizedCaseInsensitiveCompare(right.name) == .orderedSame
+                && left.setId.localizedCaseInsensitiveCompare(right.setId) == .orderedSame
+            if sameNameAndSet && left.languageCode != right.languageCode {
+                return left.languageCode == "EN"
+            }
+
+            return lhs.offset < rhs.offset
+        }.map(\.element)
+    }
+
+    private func rarityTier(_ rarity: String) -> Int {
+        let normalized = rarity.lowercased()
+
+        if normalized.isEmpty {
+            return 5
+        }
+
+        let tier1 = [
+            "illustration rare",
+            "special art rare",
+            "hyper rare",
+            "secret rare",
+            "art rare",
+            "sar",
+            "sir",
+            "crown rare"
+        ]
+        if tier1.contains(where: { normalized.contains($0) }) {
+            return 1
+        }
+
+        let tier2 = [
+            "ultra rare",
+            "double rare",
+            "vmax",
+            "vstar"
+        ]
+        if tier2.contains(where: { normalized.contains($0) }) {
+            return 2
+        }
+        if containsRarityCode("v", in: normalized)
+            || containsRarityCode("ex", in: normalized)
+            || containsRarityCode("gx", in: normalized) {
+            return 2
+        }
+
+        let tier3 = [
+            "rare holo",
+            "holo rare",
+            "rare"
+        ]
+        if tier3.contains(where: { normalized.contains($0) }) {
+            return 3
+        }
+
+        if normalized.contains("uncommon") {
+            return 4
+        }
+
+        return 5
+    }
+
+    private func containsRarityCode(_ code: String, in rarity: String) -> Bool {
+        rarity.range(
+            of: #"(^|[^a-z0-9])\#(code)([^a-z0-9]|$)"#,
+            options: .regularExpression
+        ) != nil
     }
 
     func clearSearch() {
