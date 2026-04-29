@@ -26,6 +26,7 @@ class MessagesViewModel {
 
         do {
             conversations = try await SupabaseService.shared.fetchConversations(userID: user.id)
+                .filter { !appState.blockedUserIDs.contains($0.otherParticipantID(currentUserID: user.id)) }
         } catch {
             appState.showToast("Failed to load messages", isError: true)
         }

@@ -54,8 +54,9 @@ class HomeViewModel {
     }
 
     var filteredVendors: [Vendor] {
-        guard !searchText.isEmpty else { return vendors }
-        return vendors.filter {
+        let visibleVendors = vendors.filter { !appState.blockedUserIDs.contains($0.userID) }
+        guard !searchText.isEmpty else { return visibleVendors }
+        return visibleVendors.filter {
             $0.storeName.localizedStandardContains(searchText) ||
             $0.meetupAddress.localizedStandardContains(searchText) ||
             $0.categories.contains { $0.localizedStandardContains(searchText) }
@@ -63,8 +64,9 @@ class HomeViewModel {
     }
 
     var filteredCardShows: [CardShow] {
-        guard !searchText.isEmpty else { return cardShows }
-        return cardShows.filter {
+        let visibleShows = cardShows.filter { !appState.blockedUserIDs.contains($0.creatorVendorID) }
+        guard !searchText.isEmpty else { return visibleShows }
+        return visibleShows.filter {
             $0.title.localizedStandardContains(searchText) ||
             $0.address.localizedStandardContains(searchText)
         }

@@ -224,7 +224,6 @@ class SupabaseService {
     }
 
     func fetchConversations(userID: String) async throws -> [Conversation] {
-        // TODO: Batch profile and last-message lookups to avoid N+1 queries.
         let asP1: [Conversation] = try await client.select("conversations", filters: ["participant1_id=eq.\(userID)"], order: "updated_at.desc.nullslast")
         let asP2: [Conversation] = try await client.select("conversations", filters: ["participant2_id=eq.\(userID)"], order: "updated_at.desc.nullslast")
 
@@ -233,15 +232,44 @@ class SupabaseService {
             if !all.contains(where: { $0.id == conv.id }) { all.append(conv) }
         }
 
+        guard !all.isEmpty else { return [] }
+
+        let otherUserIDs = Set(all.map { $0.otherParticipantID(currentUserID: userID) })
+        let profiles: [UserProfile]
+        if otherUserIDs.isEmpty {
+            profiles = []
+        } else {
+            profiles = try await client.select(
+                "profiles",
+                filters: ["id=in.(\(otherUserIDs.joined(separator: ",")))"]
+            )
+        }
+        let profilesByID = Dictionary(uniqueKeysWithValues: profiles.map { ($0.id, $0) })
+
+        let conversationIDs = Set(all.map(\.id))
+        let messages: [Message]
+        if conversationIDs.isEmpty {
+            messages = []
+        } else {
+            messages = try await client.select(
+                "messages",
+                filters: ["conversation_id=in.(\(conversationIDs.joined(separator: ",")))"],
+                order: "created_at.desc"
+            )
+        }
+        var lastMessagesByConversationID: [String: Message] = [:]
+        for message in messages where lastMessagesByConversationID[message.conversationID] == nil {
+            lastMessagesByConversationID[message.conversationID] = message
+        }
+
         var enriched: [Conversation] = []
         for var conv in all {
             let otherID = conv.otherParticipantID(currentUserID: userID)
-            if let profile: UserProfile = try? await client.selectSingle("profiles", filters: ["id=eq.\(otherID)"]) {
+            if let profile = profilesByID[otherID] {
                 conv.otherUserName = profile.displayName ?? profile.username
                 conv.otherUserAvatar = profile.avatarURL
             }
-            let msgs: [Message] = try await client.select("messages", filters: ["conversation_id=eq.\(conv.id)"], order: "created_at.desc")
-            conv.lastMessage = msgs.first
+            conv.lastMessage = lastMessagesByConversationID[conv.id]
             enriched.append(conv)
         }
         return enriched.sorted { ($0.lastMessage?.createdAt ?? .distantPast) > ($1.lastMessage?.createdAt ?? .distantPast) }
@@ -329,12 +357,21 @@ class SupabaseService {
     }
 
     func fetchWantedCards() async throws -> [WantedCard] {
-        // TODO: Batch owner profile lookups to avoid N+1 queries.
         var cards: [WantedCard] = try await client.select("wanted_cards", order: "created_at.desc")
-        for i in cards.indices {
-            if let profile: UserProfile = try? await client.selectSingle("profiles", filters: ["id=eq.\(cards[i].userID)"]) {
-                cards[i].ownerUsername = profile.displayName ?? profile.username
-                cards[i].ownerAvatarURL = profile.avatarURL
+
+        let userIDs = Set(cards.map(\.userID))
+        if !userIDs.isEmpty {
+            let profiles: [UserProfile] = try await client.select(
+                "profiles",
+                filters: ["id=in.(\(userIDs.joined(separator: ",")))"]
+            )
+            let profilesByID = Dictionary(uniqueKeysWithValues: profiles.map { ($0.id, $0) })
+
+            for i in cards.indices {
+                if let profile = profilesByID[cards[i].userID] {
+                    cards[i].ownerUsername = profile.displayName ?? profile.username
+                    cards[i].ownerAvatarURL = profile.avatarURL
+                }
             }
         }
         return cards

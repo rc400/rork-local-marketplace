@@ -149,7 +149,9 @@ struct VendorStorefrontView: View {
                 Task {
                     do {
                         try await SupabaseService.shared.blockUser(blockerID: currentUser.id, blockedID: vendorID)
+                        appState.addBlockedUserID(vendorID)
                         appState.showToast("Vendor blocked")
+                        dismiss()
                     } catch {
                         appState.showToast("Failed to block vendor", isError: true)
                     }

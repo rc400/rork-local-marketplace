@@ -9,6 +9,7 @@ struct ChatView: View {
     @State private var activeConversationID: String?
     @State private var showReportSheet = false
     @State private var showBlockAlert = false
+    @Environment(\.dismiss) private var dismiss
 
     init(conversationID: String?, otherUserID: String, otherUserName: String, appState: AppState) {
         self.otherUserID = otherUserID
@@ -88,7 +89,9 @@ struct ChatView: View {
                 Task {
                     do {
                         try await SupabaseService.shared.blockUser(blockerID: currentUser.id, blockedID: otherUserID)
+                        appState.addBlockedUserID(otherUserID)
                         appState.showToast("User blocked")
+                        dismiss()
                     } catch {
                         appState.showToast("Failed to block user", isError: true)
                     }

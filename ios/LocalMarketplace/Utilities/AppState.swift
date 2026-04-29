@@ -14,6 +14,7 @@ class AppState {
     var toastIsError: Bool = false
     var showNewAccountBanner: Bool = false
     var pendingVendorApplication: Bool = false
+    var blockedUserIDs: Set<String> = []
 
     var currentRole: UserRole {
         currentUser?.role ?? .buyer
@@ -43,6 +44,7 @@ class AppState {
             if let user = currentUser, user.role == .vendor {
                 currentVendor = MockDataService.shared.vendor(for: user.id)
             }
+            blockedUserIDs = []
             isAuthenticated = true
             Task {
                 try? await SubscriptionService.shared.identify(userID: currentUser?.id ?? "")
@@ -56,6 +58,7 @@ class AppState {
             if currentUser?.role == .vendor {
                 currentVendor = try await SupabaseService.shared.fetchVendor(userID: currentUser!.id)
             }
+            await loadBlockedUsers()
             isAuthenticated = true
             Task {
                 try? await SubscriptionService.shared.identify(userID: currentUser?.id ?? "")
@@ -119,6 +122,7 @@ class AppState {
         currentUser = nil
         currentVendor = nil
         vendorApplication = nil
+        blockedUserIDs = []
     }
 
     func restoreSession() async {
@@ -139,6 +143,7 @@ class AppState {
                 currentVendor = nil
             }
 
+            await loadBlockedUsers()
             isAuthenticated = true
             Task {
                 try? await SubscriptionService.shared.identify(userID: currentUser?.id ?? "")
@@ -167,10 +172,31 @@ class AppState {
             currentVendor = MockDataService.shared.vendor(for: user.id)
             vendorApplication = VendorApplication(id: "app-mock", userID: user.id, status: .approved, contactEmail: "vendor@example.com", contactPhone: "416-555-0100", answersJSON: [:])
         }
+        blockedUserIDs = []
         isAuthenticated = true
         Task {
             try? await SubscriptionService.shared.identify(userID: currentUser?.id ?? "")
             await SubscriptionService.shared.refreshStatus()
         }
+    }
+
+    func loadBlockedUsers() async {
+        guard let user = currentUser, !isMockMode else {
+            blockedUserIDs = []
+            return
+        }
+
+        do {
+            let blocks = try await SupabaseService.shared.fetchBlocks(blockerID: user.id)
+            blockedUserIDs = Set(blocks.map(\.blockedID))
+        } catch {
+            blockedUserIDs = []
+        }
+    }
+
+    func addBlockedUserID(_ userID: String) {
+        var ids = blockedUserIDs
+        ids.insert(userID)
+        blockedUserIDs = ids
     }
 }

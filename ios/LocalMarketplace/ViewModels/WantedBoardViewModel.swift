@@ -24,6 +24,7 @@ class WantedBoardViewModel {
 
         var cards = feedCards
             .filter { $0.userID != currentUserID }
+            .filter { !appState.blockedUserIDs.contains($0.userID) }
             .filter { $0.distance(from: userCoord) <= radiusKm }
             .sorted { $0.distance(from: userCoord) < $1.distance(from: userCoord) }
 
@@ -51,6 +52,7 @@ class WantedBoardViewModel {
 
         do {
             feedCards = try await SupabaseService.shared.fetchWantedCards()
+                .filter { !appState.blockedUserIDs.contains($0.userID) }
         } catch {
             appState.showToast("Failed to load wanted board", isError: true)
         }

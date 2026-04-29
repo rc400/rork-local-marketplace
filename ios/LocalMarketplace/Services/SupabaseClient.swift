@@ -176,19 +176,20 @@ class SupabaseClient {
         return true
     }
 
-    func select<T: Decodable & Sendable>(_ table: String, columns: String = "*", filters: [String] = [], order: String? = nil) async throws -> [T] {
+    func select<T: Decodable & Sendable>(_ table: String, columns: String = "*", filters: [String] = [], order: String? = nil, limit: Int? = nil) async throws -> [T] {
         var qi = [URLQueryItem(name: "select", value: columns)]
         for f in filters {
             let parts = f.split(separator: "=", maxSplits: 1)
             if parts.count == 2 { qi.append(URLQueryItem(name: String(parts[0]), value: String(parts[1]))) }
         }
         if let order { qi.append(URLQueryItem(name: "order", value: order)) }
+        if let limit { qi.append(URLQueryItem(name: "limit", value: String(limit))) }
         let data = try await request(path: "/rest/v1/\(table)\(queryString(qi))", method: "GET", body: nil)
         return try Self.jsonDecoder.decode([T].self, from: data)
     }
 
     func selectSingle<T: Decodable & Sendable>(_ table: String, columns: String = "*", filters: [String] = []) async throws -> T? {
-        let results: [T] = try await select(table, columns: columns, filters: filters)
+        let results: [T] = try await select(table, columns: columns, filters: filters, limit: 1)
         return results.first
     }
 
