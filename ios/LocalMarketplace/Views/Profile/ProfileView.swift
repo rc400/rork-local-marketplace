@@ -17,7 +17,11 @@ struct ProfileView: View {
             List {
                 Section {
                     NavigationLink {
-                        EditProfileView(viewModel: viewModel)
+                        if appState.currentRole == .vendor {
+                            EditStorefrontView(appState: appState)
+                        } else {
+                            EditProfileView(viewModel: viewModel)
+                        }
                     } label: {
                         HStack(spacing: 16) {
                             profileAvatar
