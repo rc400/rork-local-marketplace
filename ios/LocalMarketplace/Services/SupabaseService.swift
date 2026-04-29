@@ -91,9 +91,9 @@ class SupabaseService {
     }
 
     func updateProfileFields(userID: String, displayName: String?, bio: String?, avatarURL: String?) async throws {
-        var fields: [String: String] = [:]
-        fields["display_name"] = displayName ?? ""
-        fields["bio"] = bio ?? ""
+        var fields: [String: Any] = [:]
+        fields["display_name"] = displayName as Any
+        fields["bio"] = bio as Any
         if let avatarURL {
             fields["avatar_url"] = avatarURL
         }

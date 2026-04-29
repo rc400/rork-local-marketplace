@@ -105,7 +105,9 @@ struct VendorStorefrontView: View {
         .task {
             await viewModel.loadStorefront(vendorID: vendorID)
         }
-        .sheet(isPresented: $showCreateItem) {
+        .sheet(isPresented: $showCreateItem, onDismiss: {
+            Task { await viewModel.loadStorefront(vendorID: vendorID) }
+        }) {
             CreateItemView(viewModel: viewModel)
         }
         .sheet(isPresented: $showEditStorefront) {

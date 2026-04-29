@@ -73,6 +73,11 @@ struct EditProfileView: View {
             }
         }
         .listStyle(.insetGrouped)
+        .onAppear {
+            if let user = appState.currentUser {
+                viewModel.syncEditFields(from: user)
+            }
+        }
         .navigationTitle("Edit Profile")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {

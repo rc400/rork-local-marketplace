@@ -146,11 +146,18 @@ struct VendorApplicationFormView: View {
         Task {
             do {
                 try await SupabaseService.shared.submitVendorApplication(application)
+                let storeName = businessName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                    ? "\(legalFirstName) \(legalLastName)"
+                    : businessName
+                let categories = whatDoYouSell
+                    .split(separator: ",")
+                    .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+                    .filter { !$0.isEmpty }
                 let vendor = Vendor(
                     userID: user.id,
-                    storeName: "",
-                    categories: [],
-                    meetupAddress: "",
+                    storeName: storeName,
+                    categories: categories.isEmpty ? ["General"] : categories,
+                    meetupAddress: cityRegion,
                     approved: false,
                     isDisabled: false,
                     isActive: false
