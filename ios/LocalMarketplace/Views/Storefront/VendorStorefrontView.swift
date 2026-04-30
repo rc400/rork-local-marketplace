@@ -105,7 +105,7 @@ struct VendorStorefrontView: View {
         .task {
             await viewModel.loadStorefront(vendorID: vendorID)
         }
-        .sheet(isPresented: $showCreateItem, onDismiss: {
+        .fullScreenCover(isPresented: $showCreateItem, onDismiss: {
             Task { await viewModel.loadStorefront(vendorID: vendorID) }
         }) {
             CreateItemView(viewModel: viewModel)
