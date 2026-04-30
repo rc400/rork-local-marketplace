@@ -163,7 +163,7 @@ struct MessageBubble: View {
                     .clipShape(.rect(cornerRadius: 18))
 
                 if let date = message.createdAt {
-                    Text(date, style: .time)
+                    Text(date, format: .dateTime.hour().minute())
                         .font(.caption2)
                         .foregroundStyle(.tertiary)
                 }
