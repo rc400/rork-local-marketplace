@@ -158,10 +158,12 @@ class PokemonTCGService {
 
         var q: String
         if let num = numberPart {
+            // Use wildcard prefix so "03" matches "TG03", "003", etc.
+            let numberFilter = "number:*\(num)"
             if nameQuery.isEmpty {
-                q = "number:\(num)"
+                q = numberFilter
             } else {
-                q = "\(nameQuery) number:\(num)"
+                q = "\(nameQuery) \(numberFilter)"
             }
         } else {
             // Plain text search - matches across translations, returns both EN and JA
@@ -179,7 +181,8 @@ class PokemonTCGService {
 
         if token.range(of: #"^\d+$"#, options: .regularExpression) != nil {
             rawNumber = token
-        } else if token.range(of: #"^\d+/\d+$"#, options: .regularExpression) != nil {
+        } else if token.range(of: #"^\d+/[\w]+$"#, options: .regularExpression) != nil {
+            // "098/165" or "TG03/swsh11tg" — take part before slash
             rawNumber = String(token.split(separator: "/", maxSplits: 1).first ?? "")
         } else if token.range(of: #"^#\d+$"#, options: .regularExpression) != nil {
             rawNumber = String(token.dropFirst())
@@ -187,13 +190,10 @@ class PokemonTCGService {
             return nil
         }
 
-        return stripLeadingZeros(from: rawNumber)
+        return rawNumber
     }
 
-    private func stripLeadingZeros(from number: String) -> String {
-        let stripped = number.drop(while: { $0 == "0" })
-        return stripped.isEmpty ? "0" : String(stripped)
-    }
+
 
     private func sortCardsBySearchPreference(_ cards: [TCGCard]) -> [TCGCard] {
         cards.enumerated().sorted { lhs, rhs in
