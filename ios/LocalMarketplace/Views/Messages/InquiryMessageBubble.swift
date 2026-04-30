@@ -21,7 +21,7 @@ struct InquiryMessageBubble: View {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 10) {
                         ForEach(inquiry.items) { item in
-                            InquiryCardTile(item: item)
+                            InquiryCardTile(item: item, intent: inquiry.resolvedIntent)
                                 .onTapGesture {
                                     selectedItem = item
                                 }
@@ -35,8 +35,8 @@ struct InquiryMessageBubble: View {
                 }
 
                 Text(inquiry.resolvedIntent == .buy
-                     ? "Total: \(String(format: "$%.2f CAD", inquiry.total))"
-                     : "Asking: \(String(format: "$%.2f CAD", inquiry.total))")
+                     ? "List Total: \(String(format: "$%.2f CAD", inquiry.total))"
+                     : "Bid Total: \(String(format: "$%.2f CAD", inquiry.total))")
                     .font(.caption.weight(.bold))
             }
             .padding(12)
@@ -68,6 +68,7 @@ struct InquiryMessageBubble: View {
 
 struct InquiryCardTile: View {
     let item: InquiryItemData
+    var intent: InquiryIntent = .buy
 
     var body: some View {
         VStack(spacing: 6) {
@@ -100,7 +101,7 @@ struct InquiryCardTile: View {
                         .foregroundStyle(.secondary)
                 }
 
-                Text(item.formattedPrice)
+                Text("\(intent == .buy ? "List" : "Bid") \(item.formattedPrice)")
                     .font(.caption2.weight(.bold))
 
                 if item.quantity > 1 {
