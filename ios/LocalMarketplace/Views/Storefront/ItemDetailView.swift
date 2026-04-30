@@ -18,6 +18,14 @@ struct ItemDetailView: View {
         item.status == .sold
     }
 
+    private var shouldShowSlabFrame: Bool {
+        item.category == .slab && item.slabGrade != nil && item.slabCompany != nil
+    }
+
+    private var slabImageURL: String? {
+        item.tcgCardImageURL ?? item.image1URL
+    }
+
     private var vendorPhotoURLs: [String] {
         [item.image1URL, item.image2URL].compactMap { url in
             guard let url, !url.isEmpty else { return nil }
@@ -158,7 +166,34 @@ struct ItemDetailView: View {
 
     @ViewBuilder
     private var itemImage: some View {
-        if isTCGItem, let urlString = item.tcgCardImageURL, let imageURL = URL(string: urlString) {
+        if shouldShowSlabFrame, let grade = item.slabGrade, let company = item.slabCompany {
+            VStack(spacing: 14) {
+                SlabFrameView(
+                    cardImageURL: slabImageURL,
+                    company: company,
+                    companyOther: item.slabCompanyOther,
+                    grade: grade,
+                    width: 300
+                )
+                .padding(.top, 12)
+
+                if !vendorPhotoURLs.isEmpty {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 10) {
+                            ForEach(vendorPhotoURLs, id: \.self) { urlString in
+                                Button {
+                                    selectedPhoto = DetailPhoto(urlString: urlString)
+                                } label: {
+                                    VendorPhotoThumbnail(urlString: urlString, icon: item.category.icon)
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                        .padding(.horizontal, 20)
+                    }
+                }
+            }
+        } else if isTCGItem, let urlString = item.tcgCardImageURL, let imageURL = URL(string: urlString) {
             VStack(spacing: 14) {
                 Color(.secondarySystemBackground)
                     .aspectRatio(0.714, contentMode: .fit)

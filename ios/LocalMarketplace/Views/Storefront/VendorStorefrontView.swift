@@ -570,6 +570,14 @@ struct HorizontalItemCard: View {
         (item.category == .single || item.category == .slab) && item.tcgCardImageURL != nil
     }
 
+    private var shouldShowSlabFrame: Bool {
+        item.category == .slab && item.slabGrade != nil && item.slabCompany != nil
+    }
+
+    private var slabImageURL: String? {
+        item.tcgCardImageURL ?? item.image1URL
+    }
+
     private var isHidden: Bool {
         item.status == .inactive
     }
@@ -589,7 +597,15 @@ struct HorizontalItemCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             ZStack(alignment: .topTrailing) {
-                if isTCGItem, let urlString = item.tcgCardImageURL, let imageURL = URL(string: urlString) {
+                if shouldShowSlabFrame, let grade = item.slabGrade, let company = item.slabCompany {
+                    SlabFrameView(
+                        cardImageURL: slabImageURL,
+                        company: company,
+                        companyOther: item.slabCompanyOther,
+                        grade: grade,
+                        width: cardWidth
+                    )
+                } else if isTCGItem, let urlString = item.tcgCardImageURL, let imageURL = URL(string: urlString) {
                     Color(.tertiarySystemGroupedBackground)
                         .aspectRatio(0.714, contentMode: .fit)
                         .overlay {
@@ -733,9 +749,35 @@ struct SoldItemCard: View {
         (UIScreen.main.bounds.width - 16 * 2 - 12) / 2
     }
 
+    private var shouldShowSlabFrame: Bool {
+        item.category == .slab && item.slabGrade != nil && item.slabCompany != nil
+    }
+
+    private var slabImageURL: String? {
+        item.tcgCardImageURL ?? item.image1URL
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            if let urlString = item.tcgCardImageURL, let imageURL = URL(string: urlString) {
+            if shouldShowSlabFrame, let grade = item.slabGrade, let company = item.slabCompany {
+                SlabFrameView(
+                    cardImageURL: slabImageURL,
+                    company: company,
+                    companyOther: item.slabCompanyOther,
+                    grade: grade,
+                    width: cardWidth * 0.8
+                )
+                .overlay(alignment: .topTrailing) {
+                    Text("SOLD")
+                        .font(.caption2.weight(.black))
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 3)
+                        .background(.red)
+                        .foregroundStyle(.white)
+                        .clipShape(.capsule)
+                        .padding(6)
+                }
+            } else if let urlString = item.tcgCardImageURL, let imageURL = URL(string: urlString) {
                 Color(.tertiarySystemGroupedBackground)
                     .aspectRatio(0.714, contentMode: .fit)
                     .overlay {
@@ -810,6 +852,18 @@ struct ItemCard: View {
         (item.category == .single || item.category == .slab) && item.tcgCardImageURL != nil
     }
 
+    private var cardWidth: CGFloat {
+        (UIScreen.main.bounds.width - 16 * 2 - 12) / 2 - 20
+    }
+
+    private var shouldShowSlabFrame: Bool {
+        item.category == .slab && item.slabGrade != nil && item.slabCompany != nil
+    }
+
+    private var slabImageURL: String? {
+        item.tcgCardImageURL ?? item.image1URL
+    }
+
     private var isHidden: Bool {
         item.status == .inactive
     }
@@ -817,7 +871,16 @@ struct ItemCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             ZStack(alignment: .topLeading) {
-                if isTCGItem, let urlString = item.tcgCardImageURL, let imageURL = URL(string: urlString) {
+                if shouldShowSlabFrame, let grade = item.slabGrade, let company = item.slabCompany {
+                    SlabFrameView(
+                        cardImageURL: slabImageURL,
+                        company: company,
+                        companyOther: item.slabCompanyOther,
+                        grade: grade,
+                        width: cardWidth
+                    )
+                    .frame(maxWidth: .infinity)
+                } else if isTCGItem, let urlString = item.tcgCardImageURL, let imageURL = URL(string: urlString) {
                     Color(.tertiarySystemGroupedBackground)
                         .aspectRatio(0.714, contentMode: .fit)
                         .overlay {

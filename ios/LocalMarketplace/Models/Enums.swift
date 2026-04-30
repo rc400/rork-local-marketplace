@@ -1,4 +1,5 @@
 import Foundation
+import SwiftUI
 
 nonisolated enum UserRole: String, Codable, Sendable, CaseIterable {
     case buyer
@@ -166,6 +167,20 @@ nonisolated enum SlabCompany: String, Codable, Sendable, CaseIterable, Identifia
         switch self {
         case .BGS: "BGS"
         default: rawValue
+        }
+    }
+
+    var brandColor: Color {
+        switch self {
+        case .PSA: Color(red: 0.8, green: 0, blue: 0)
+        case .BGS: Color(red: 0, green: 0.2, blue: 0.6)
+        case .CGC: Color(red: 0.77, green: 0.64, blue: 0.33)
+        case .SGC: Color(red: 0.2, green: 0.5, blue: 0.3)
+        case .ACE: Color.purple
+        case .TAG: Color.orange
+        case .MNT: Color.teal
+        case .KSA: Color.indigo
+        case .other: Color.gray
         }
     }
 }
