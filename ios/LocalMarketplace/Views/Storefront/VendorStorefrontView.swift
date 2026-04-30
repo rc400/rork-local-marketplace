@@ -10,6 +10,7 @@ struct VendorStorefrontView: View {
     @State private var showReportSheet = false
     @State private var showBlockAlert = false
     @State private var editingBinder: Binder?
+    @State private var editingItem: MarketplaceItem?
     @State private var showBinderManagement = false
     @State private var showSoldItems = false
     @State private var selectedBinderForFullView: Binder?
@@ -140,6 +141,11 @@ struct VendorStorefrontView: View {
         .sheet(item: $editingBinder) { binder in
             EditBinderSheet(viewModel: viewModel, binder: binder)
         }
+        .sheet(item: $editingItem) { item in
+            EditItemView(item: item, viewModel: viewModel) {
+                Task { await viewModel.loadStorefront(vendorID: vendorID) }
+            }
+        }
         .sheet(isPresented: $showBinderManagement) {
             BinderManagementView(viewModel: viewModel)
         }
@@ -189,6 +195,43 @@ struct VendorStorefrontView: View {
             }
         }
         .animation(.spring(duration: 0.35), value: viewModel.inquiryCart.isEmpty)
+    }
+
+    private func markAsSold(_ item: MarketplaceItem) {
+        Task {
+            var updated = item
+            updated.status = .sold
+            updated.soldAt = Date()
+            do {
+                if appState.isMockMode {
+                    if let index = viewModel.items.firstIndex(where: { $0.id == item.id }) {
+                        viewModel.items[index] = updated
+                    }
+                } else {
+                    try await SupabaseService.shared.updateItem(updated)
+                    await viewModel.loadStorefront(vendorID: vendorID)
+                }
+                appState.showToast("Marked as sold")
+            } catch {
+                appState.showToast("Failed to update", isError: true)
+            }
+        }
+    }
+
+    private func deleteItem(_ item: MarketplaceItem) {
+        Task {
+            do {
+                if appState.isMockMode {
+                    viewModel.items.removeAll { $0.id == item.id }
+                } else {
+                    try await SupabaseService.shared.deleteItem(id: item.id)
+                    await viewModel.loadStorefront(vendorID: vendorID)
+                }
+                appState.showToast("Item deleted")
+            } catch {
+                appState.showToast("Failed to delete", isError: true)
+            }
+        }
     }
 
     // MARK: - Header
@@ -384,6 +427,15 @@ struct VendorStorefrontView: View {
                                                 quickAddedItemID = nil
                                             }
                                         }
+                                    },
+                                    onEdit: {
+                                        editingItem = item
+                                    },
+                                    onMarkAsSold: {
+                                        markAsSold(item)
+                                    },
+                                    onDelete: {
+                                        deleteItem(item)
                                     }
                                 )
                             }
@@ -424,6 +476,15 @@ struct VendorStorefrontView: View {
                                         quickAddedItemID = nil
                                     }
                                 }
+                            },
+                            onEdit: {
+                                editingItem = item
+                            },
+                            onMarkAsSold: {
+                                markAsSold(item)
+                            },
+                            onDelete: {
+                                deleteItem(item)
                             }
                         )
                     }
@@ -497,6 +558,9 @@ struct HorizontalItemCard: View {
     var canAdd: Bool = true
     var onTap: (() -> Void)?
     var onQuickAdd: (() -> Void)?
+    var onEdit: (() -> Void)?
+    var onMarkAsSold: (() -> Void)?
+    var onDelete: (() -> Void)?
 
     private var cardWidth: CGFloat {
         (UIScreen.main.bounds.width - 16 * 2 - 12) / 2
@@ -600,7 +664,7 @@ struct HorizontalItemCard: View {
                 }
             }
 
-            Text(item.displayName)
+            Text(item.conditionPrefix + item.displayName)
                 .font(.subheadline.weight(.semibold))
                 .lineLimit(1)
 
@@ -636,6 +700,25 @@ struct HorizontalItemCard: View {
         .contentShape(.rect)
         .onTapGesture {
             onTap?()
+        }
+        .contextMenu {
+            if isOwnStore {
+                Button {
+                    onEdit?()
+                } label: {
+                    Label("Edit", systemImage: "pencil")
+                }
+                Button {
+                    onMarkAsSold?()
+                } label: {
+                    Label("Mark as Sold", systemImage: "checkmark.circle")
+                }
+                Button(role: .destructive) {
+                    onDelete?()
+                } label: {
+                    Label("Delete", systemImage: "trash")
+                }
+            }
         }
     }
 }
@@ -688,7 +771,7 @@ struct SoldItemCard: View {
                     .clipShape(.rect(cornerRadius: 8))
             }
 
-            Text(item.displayName)
+            Text(item.conditionPrefix + item.displayName)
                 .font(.caption.weight(.semibold))
                 .lineLimit(1)
 
@@ -718,6 +801,9 @@ struct ItemCard: View {
     var isQuickAdded: Bool = false
     var isInCart: Bool = false
     var canAdd: Bool = true
+    var onEdit: (() -> Void)?
+    var onMarkAsSold: (() -> Void)?
+    var onDelete: (() -> Void)?
 
     private var isTCGItem: Bool {
         (item.category == .single || item.category == .slab) && item.tcgCardImageURL != nil
@@ -795,7 +881,7 @@ struct ItemCard: View {
             }
 
             VStack(alignment: .leading, spacing: 4) {
-                Text(item.displayName)
+                Text(item.conditionPrefix + item.displayName)
                     .font(.subheadline.weight(.semibold))
                     .lineLimit(1)
 
@@ -870,6 +956,25 @@ struct ItemCard: View {
                 onSelect?()
             } else {
                 onTap?()
+            }
+        }
+        .contextMenu {
+            if isOwnStore {
+                Button {
+                    onEdit?()
+                } label: {
+                    Label("Edit", systemImage: "pencil")
+                }
+                Button {
+                    onMarkAsSold?()
+                } label: {
+                    Label("Mark as Sold", systemImage: "checkmark.circle")
+                }
+                Button(role: .destructive) {
+                    onDelete?()
+                } label: {
+                    Label("Delete", systemImage: "trash")
+                }
             }
         }
     }

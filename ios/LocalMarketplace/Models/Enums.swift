@@ -70,7 +70,7 @@ nonisolated enum ItemCondition: String, Codable, Sendable, CaseIterable {
     var requiresImages: Bool { self != .NM }
 }
 
-nonisolated enum ItemStatus: String, Codable, Sendable {
+nonisolated enum ItemStatus: String, Codable, Sendable, CaseIterable {
     case draft
     case active
     case inactive

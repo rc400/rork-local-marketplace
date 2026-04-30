@@ -96,6 +96,7 @@ struct ReviewQueueView: View {
                     priceCAD: price,
                     category: .single,
                     condition: item.condition,
+                    note: item.note.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : item.note,
                     status: .active,
                     tcgCardID: item.card.id,
                     tcgCardName: item.card.name,
@@ -169,8 +170,23 @@ private struct ReviewQueueRow: View {
 
                 Stepper("Qty: \(item.quantity)", value: $item.quantity, in: 1...999)
             }
+
+            TextField("Add a note (optional)...", text: $item.note, axis: .vertical)
+                .lineLimit(1...3)
+                .textFieldStyle(.roundedBorder)
+
+            if item.condition.requiresImages && !item.hasPhotos {
+                Text("📷 Photos required for non-NM")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.orange)
+            }
         }
         .padding(.vertical, 6)
+        .padding(8)
+        .overlay {
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(item.isValid ? Color.clear : Color.red, lineWidth: 1.5)
+        }
     }
 }
 

@@ -10,6 +10,7 @@ struct FullBinderView: View {
     @State private var showSoldConfirm = false
     @State private var showDeleteConfirm = false
     @State private var selectedItemForDetail: MarketplaceItem?
+    @State private var editingItem: MarketplaceItem?
     @State private var quickAddedItemID: String?
 
     private var binderItems: [MarketplaceItem] {
@@ -46,7 +47,16 @@ struct FullBinderView: View {
                         } : nil,
                         isQuickAdded: quickAddedItemID == item.id,
                         isInCart: viewModel.cartQuantity(for: item.id) > 0,
-                        canAdd: viewModel.canAddToCart(item)
+                        canAdd: viewModel.canAddToCart(item),
+                        onEdit: {
+                            editingItem = item
+                        },
+                        onMarkAsSold: {
+                            markAsSold(item)
+                        },
+                        onDelete: {
+                            deleteItem(item)
+                        }
                     )
                 }
             }
@@ -109,6 +119,11 @@ struct FullBinderView: View {
         }
         .sheet(isPresented: $showMoveSheet) {
             moveToBinderSheet
+        }
+        .sheet(item: $editingItem) { item in
+            EditItemView(item: item, viewModel: viewModel) {
+                Task { await viewModel.loadStorefront(vendorID: viewModel.vendor?.userID ?? "") }
+            }
         }
         .alert("Hide \(viewModel.selectedItemIDs.count) Item(s)?", isPresented: $showHideConfirm) {
             Button(viewModel.bulkHideLabel, role: .destructive) {
@@ -244,5 +259,42 @@ struct FullBinderView: View {
             }
         }
         .presentationDetents([.medium])
+    }
+
+    private func markAsSold(_ item: MarketplaceItem) {
+        Task {
+            var updated = item
+            updated.status = .sold
+            updated.soldAt = Date()
+            do {
+                if appState.isMockMode {
+                    if let index = viewModel.items.firstIndex(where: { $0.id == item.id }) {
+                        viewModel.items[index] = updated
+                    }
+                } else {
+                    try await SupabaseService.shared.updateItem(updated)
+                    await viewModel.loadStorefront(vendorID: viewModel.vendor?.userID ?? "")
+                }
+                appState.showToast("Marked as sold")
+            } catch {
+                appState.showToast("Failed to update", isError: true)
+            }
+        }
+    }
+
+    private func deleteItem(_ item: MarketplaceItem) {
+        Task {
+            do {
+                if appState.isMockMode {
+                    viewModel.items.removeAll { $0.id == item.id }
+                } else {
+                    try await SupabaseService.shared.deleteItem(id: item.id)
+                    await viewModel.loadStorefront(vendorID: viewModel.vendor?.userID ?? "")
+                }
+                appState.showToast("Item deleted")
+            } catch {
+                appState.showToast("Failed to delete", isError: true)
+            }
+        }
     }
 }

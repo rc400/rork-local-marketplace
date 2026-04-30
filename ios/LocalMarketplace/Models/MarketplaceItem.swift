@@ -70,6 +70,11 @@ nonisolated struct MarketplaceItem: Codable, Identifiable, Sendable, Hashable {
         return name
     }
 
+    var conditionPrefix: String {
+        guard let condition else { return "" }
+        return "[\(condition.shortName)] "
+    }
+
     var primaryImageURL: String? {
         if (category == .single || category == .slab), let cardImage = tcgCardImageURL {
             return cardImage
