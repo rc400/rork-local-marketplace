@@ -202,7 +202,16 @@ class PokemonTCGService {
 
         var queryParts: [String] = []
         if !nameQuery.isEmpty {
-            queryParts.append(nameQuery)
+            // Use wildcard for partial names (e.g. "pika" → name:pika*)
+            // Use plain text for full names to also match Japanese translations
+            let isFullName = PokemonNameSuggester.shared.containsExactName(nameQuery)
+            if isFullName {
+                queryParts.append(nameQuery)
+            } else if nameQuery.contains(" ") {
+                queryParts.append("name:\"\(nameQuery)*\"")
+            } else {
+                queryParts.append("name:\(nameQuery)*")
+            }
         }
         if let subtype {
             queryParts.append("subtypes:\(subtype)")
