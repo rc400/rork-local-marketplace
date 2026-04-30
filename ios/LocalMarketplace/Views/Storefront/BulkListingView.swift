@@ -55,7 +55,7 @@ struct BulkListingView: View {
                     showReview = true
                 }
             }
-            .sheet(isPresented: $showReview) {
+            .navigationDestination(isPresented: $showReview) {
                 ReviewQueueView(
                     queuedItems: $queuedItems,
                     vendorID: vendorID,

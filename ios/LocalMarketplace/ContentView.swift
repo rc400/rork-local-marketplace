@@ -202,6 +202,8 @@ struct AdminTabView: View {
 struct VendorCreateFlow: View {
     let appState: AppState
     @State private var viewModel: StorefrontViewModel
+    @State private var showBulkListing = false
+    @State private var showDetailedListing = false
 
     init(appState: AppState) {
         self.appState = appState
@@ -209,11 +211,76 @@ struct VendorCreateFlow: View {
     }
 
     var body: some View {
-        CreateItemView(viewModel: viewModel)
-            .task {
-                if let user = appState.currentUser {
-                    await viewModel.loadStorefront(vendorID: user.id)
+        NavigationStack {
+            VStack(spacing: 24) {
+                Spacer()
+
+                VStack(spacing: 16) {
+                    Button {
+                        showBulkListing = true
+                    } label: {
+                        Label {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Quick Add")
+                                    .font(.headline)
+                                Text("Search and add multiple cards fast")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        } icon: {
+                            Image(systemName: "bolt.fill")
+                                .font(.title2)
+                                .frame(width: 40)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(16)
+                        .background(Color(.secondarySystemGroupedBackground))
+                        .clipShape(.rect(cornerRadius: 12))
+                    }
+                    .buttonStyle(.plain)
+
+                    Button {
+                        showDetailedListing = true
+                    } label: {
+                        Label {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Detailed Listing")
+                                    .font(.headline)
+                                Text("Add photos, notes, slabs, sealed products")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        } icon: {
+                            Image(systemName: "doc.fill")
+                                .font(.title2)
+                                .frame(width: 40)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(16)
+                        .background(Color(.secondarySystemGroupedBackground))
+                        .clipShape(.rect(cornerRadius: 12))
+                    }
+                    .buttonStyle(.plain)
                 }
+                .padding(.horizontal, 24)
+
+                Spacer()
+                Spacer()
             }
+            .background(Color(.systemGroupedBackground))
+            .navigationTitle("Create Listing")
+            .navigationBarTitleDisplayMode(.inline)
+        }
+        .fullScreenCover(isPresented: $showBulkListing) {
+            BulkListingView(vendorID: appState.currentUser?.id ?? "", appState: appState)
+        }
+        .fullScreenCover(isPresented: $showDetailedListing) {
+            CreateItemView(viewModel: viewModel)
+                .task {
+                    if let user = appState.currentUser {
+                        await viewModel.loadStorefront(vendorID: user.id)
+                    }
+                }
+        }
     }
 }
