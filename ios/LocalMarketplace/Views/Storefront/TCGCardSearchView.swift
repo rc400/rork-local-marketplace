@@ -94,7 +94,7 @@ struct TCGCardSearchView: View {
                     }
                     .padding()
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else if tcgService.searchResults.isEmpty && searchText.count >= 3 {
+                } else if tcgService.searchResults.isEmpty && searchText.count >= 3 && !shouldShowSuggestions {
                     VStack(spacing: 12) {
                         Image(systemName: "magnifyingglass")
                             .font(.largeTitle)
