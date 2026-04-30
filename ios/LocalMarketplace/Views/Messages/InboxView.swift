@@ -86,7 +86,11 @@ struct ConversationRow: View {
 
     private func lastMessagePreview(_ message: Message) -> String {
         if message.isInquiry, let data = message.inquiryData {
-            return "📋 Card Inquiry (\(data.items.count) item\(data.items.count == 1 ? "" : "s"))"
+            let itemCount = "\(data.items.count) item\(data.items.count == 1 ? "" : "s")"
+            if data.resolvedIntent == .sell {
+                return "🏷️ Offer to Sell (\(itemCount))"
+            }
+            return "🛒 Wants to Buy (\(itemCount))"
         }
         return message.body
     }

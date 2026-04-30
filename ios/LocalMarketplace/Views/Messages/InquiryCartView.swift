@@ -185,7 +185,8 @@ struct InquiryCartView: View {
         let inquiry = InquiryMessageData(
             items: inquiryItems,
             note: trimmedNote.isEmpty ? nil : trimmedNote,
-            total: cartTotal
+            total: cartTotal,
+            intent: .buy
         )
         let encoder = JSONEncoder()
         let jsonData = try! encoder.encode(inquiry)

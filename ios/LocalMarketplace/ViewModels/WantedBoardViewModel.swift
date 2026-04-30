@@ -166,7 +166,8 @@ class WantedBoardViewModel {
         let inquiry = InquiryMessageData(
             items: [inquiryItem],
             note: trimmedNote.isEmpty ? nil : trimmedNote,
-            total: card.bidPrice
+            total: card.bidPrice,
+            intent: .sell
         )
 
         let messageBody: String

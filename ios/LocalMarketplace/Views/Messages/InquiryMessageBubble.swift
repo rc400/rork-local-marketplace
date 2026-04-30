@@ -11,12 +11,12 @@ struct InquiryMessageBubble: View {
 
             VStack(alignment: isCurrentUser ? .trailing : .leading, spacing: 8) {
                 HStack(spacing: 6) {
-                    Image(systemName: "cart.fill")
+                    Image(systemName: inquiry.resolvedIntent == .buy ? "cart.fill" : "tag.fill")
                         .font(.caption)
-                    Text("Card Inquiry")
+                    Text(inquiry.resolvedIntent == .buy ? "Wants to Buy" : "Offering to Sell")
                         .font(.caption.weight(.semibold))
                 }
-                .foregroundStyle(isCurrentUser ? .white.opacity(0.8) : .secondary)
+                .foregroundStyle(intentLabelColor)
 
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 10) {
@@ -34,19 +34,35 @@ struct InquiryMessageBubble: View {
                         .font(.subheadline)
                 }
 
-                Text("Total: \(String(format: "$%.2f CAD", inquiry.total))")
+                Text(inquiry.resolvedIntent == .buy
+                     ? "Total: \(String(format: "$%.2f CAD", inquiry.total))"
+                     : "Asking: \(String(format: "$%.2f CAD", inquiry.total))")
                     .font(.caption.weight(.bold))
             }
             .padding(12)
-            .background(isCurrentUser ? Color.teal : Color(.secondarySystemGroupedBackground))
+            .background(bubbleBackground)
             .foregroundStyle(isCurrentUser ? .white : .primary)
             .clipShape(.rect(cornerRadius: 18))
 
             if !isCurrentUser { Spacer(minLength: 40) }
         }
         .sheet(item: $selectedItem) { item in
-            InquiryItemDetailSheet(item: item)
+            InquiryItemDetailSheet(item: item, intent: inquiry.resolvedIntent)
         }
+    }
+
+    private var bubbleBackground: Color {
+        if isCurrentUser {
+            return inquiry.resolvedIntent == .buy ? .teal : .orange
+        }
+        return Color(.secondarySystemGroupedBackground)
+    }
+
+    private var intentLabelColor: Color {
+        if isCurrentUser {
+            return .white.opacity(0.8)
+        }
+        return inquiry.resolvedIntent == .buy ? .teal : .orange
     }
 }
 
@@ -110,6 +126,7 @@ struct InquiryCardTile: View {
 
 struct InquiryItemDetailSheet: View {
     let item: InquiryItemData
+    var intent: InquiryIntent = .buy
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -161,7 +178,7 @@ struct InquiryItemDetailSheet: View {
                 }
                 .padding(24)
             }
-            .navigationTitle("Card Details")
+            .navigationTitle(intent == .buy ? "Wants to Buy" : "Offering to Sell")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
