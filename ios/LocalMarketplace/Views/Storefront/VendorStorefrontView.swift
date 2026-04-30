@@ -5,6 +5,7 @@ struct VendorStorefrontView: View {
     let appState: AppState
     @State private var viewModel: StorefrontViewModel
     @State private var showCreateItem = false
+    @State private var showBulkListing = false
     @State private var showEditStorefront = false
     @State private var showReportSheet = false
     @State private var showBlockAlert = false
@@ -66,11 +67,24 @@ struct VendorStorefrontView: View {
             if viewModel.isOwnStore {
                 ToolbarItem(placement: .topBarTrailing) {
                     Menu {
+                        Button {
+                            showBulkListing = true
+                        } label: {
+                            Label("Quick Add", systemImage: "bolt.fill")
+                        }
+                        Button {
+                            showCreateItem = true
+                        } label: {
+                            Label("Detailed Listing", systemImage: "doc.fill")
+                        }
+                    } label: {
+                        Image(systemName: "plus")
+                    }
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Menu {
                         Button { showEditStorefront = true } label: {
                             Label("Edit Storefront", systemImage: "pencil")
-                        }
-                        Button { showCreateItem = true } label: {
-                            Label("Add Item", systemImage: "plus")
                         }
                         Button { showBinderManagement = true } label: {
                             Label("Manage Binders", systemImage: "folder.badge.gearshape")
@@ -109,6 +123,11 @@ struct VendorStorefrontView: View {
             Task { await viewModel.loadStorefront(vendorID: vendorID) }
         }) {
             CreateItemView(viewModel: viewModel)
+        }
+        .fullScreenCover(isPresented: $showBulkListing, onDismiss: {
+            Task { await viewModel.loadStorefront(vendorID: vendorID) }
+        }) {
+            BulkListingView(vendorID: vendorID, appState: appState)
         }
         .sheet(isPresented: $showEditStorefront) {
             EditStorefrontView(appState: appState, onSave: {

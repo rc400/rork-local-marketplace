@@ -8,6 +8,7 @@ class PokemonTCGService {
     var searchResults: [TCGCard] = []
     var isSearching: Bool = false
     var searchError: String?
+    var availableExpansions: [ScrydexExpansionInfo] { expansions }
 
     private var cache: [String: [TCGCard]] = [:]
     private var searchTask: Task<Void, Never>?
@@ -136,28 +137,7 @@ class PokemonTCGService {
             }
 
             let decoded = try JSONDecoder().decode(ScrydexResponse.self, from: data)
-            let cards = decoded.data.map { card in
-                let frontImage = card.images?.first { $0.type == "front" } ?? card.images?.first
-                let displayName: String
-                if card.languageCode == "JA", let enName = card.translation?.en?.name {
-                    displayName = enName
-                } else {
-                    displayName = card.name
-                }
-                return TCGCard(
-                    id: card.id,
-                    name: displayName,
-                    number: card.number ?? "",
-                    setName: card.expansion?.name ?? "",
-                    setId: card.expansion?.id ?? "",
-                    releaseDate: card.expansion?.releaseDate ?? "",
-                    subtypes: card.subtypes ?? [],
-                    rarity: card.rarity ?? "",
-                    imageSmall: frontImage?.small ?? "",
-                    imageLarge: frontImage?.large ?? "",
-                    languageCode: card.languageCode ?? "EN"
-                )
-            }
+            let cards = decoded.data.map(mapScrydexCard)
             return .success(sortCardsBySearchPreference(cards))
         } catch is CancellationError {
             return .failure(.cancelled)
@@ -396,6 +376,68 @@ class PokemonTCGService {
         isSearching = false
         searchTask?.cancel()
     }
+
+    func fetchSetCards(expansionId: String) async -> [TCGCard] {
+        var components = URLComponents(string: baseURL)
+        components?.queryItems = [
+            URLQueryItem(name: "q", value: "expansion.id:\(expansionId) -expansion.is_online_only:true"),
+            URLQueryItem(name: "pageSize", value: "250"),
+            URLQueryItem(name: "orderBy", value: "number")
+        ]
+
+        guard let url = components?.url else { return [] }
+
+        var request = URLRequest(url: url)
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.setValue(Config.EXPO_PUBLIC_SCRYDEX_API_KEY, forHTTPHeaderField: "X-Api-Key")
+        request.setValue(Config.EXPO_PUBLIC_SCRYDEX_TEAM_ID, forHTTPHeaderField: "X-Team-ID")
+
+        do {
+            let (data, response) = try await session.data(for: request)
+            guard let http = response as? HTTPURLResponse, http.statusCode == 200 else { return [] }
+
+            let decoded = try JSONDecoder().decode(ScrydexResponse.self, from: data)
+            return decoded.data.map(mapScrydexCard).sorted { lhs, rhs in
+                compareCardNumbers(lhs.number, rhs.number)
+            }
+        } catch {
+            return []
+        }
+    }
+
+    private func mapScrydexCard(_ card: ScrydexCard) -> TCGCard {
+        let frontImage = card.images?.first { $0.type == "front" } ?? card.images?.first
+        let displayName: String
+        if card.languageCode == "JA", let enName = card.translation?.en?.name {
+            displayName = enName
+        } else {
+            displayName = card.name
+        }
+        return TCGCard(
+            id: card.id,
+            name: displayName,
+            number: card.number ?? "",
+            setName: card.expansion?.name ?? "",
+            setId: card.expansion?.id ?? "",
+            releaseDate: card.expansion?.releaseDate ?? "",
+            subtypes: card.subtypes ?? [],
+            rarity: card.rarity ?? "",
+            imageSmall: frontImage?.small ?? "",
+            imageLarge: frontImage?.large ?? "",
+            languageCode: card.languageCode ?? "EN"
+        )
+    }
+
+    private func compareCardNumbers(_ lhs: String, _ rhs: String) -> Bool {
+        let leftNumber = Int(lhs.filter(\.isNumber)) ?? Int.max
+        let rightNumber = Int(rhs.filter(\.isNumber)) ?? Int.max
+
+        if leftNumber != rightNumber {
+            return leftNumber < rightNumber
+        }
+
+        return lhs.localizedStandardCompare(rhs) == .orderedAscending
+    }
 }
 
 nonisolated enum SearchError: Error, Sendable {
@@ -430,9 +472,16 @@ nonisolated struct ScrydexExpansionsResponse: Codable, Sendable {
     let data: [ScrydexExpansionInfo]
 }
 
-nonisolated struct ScrydexExpansionInfo: Codable, Sendable, Identifiable {
+nonisolated struct ScrydexExpansionInfo: Codable, Sendable, Identifiable, Hashable {
     let id: String
     let name: String
+    let series: String?
+    let releaseDate: String?
+
+    nonisolated enum CodingKeys: String, CodingKey {
+        case id, name, series
+        case releaseDate = "release_date"
+    }
 }
 
 nonisolated struct ScrydexCard: Codable, Sendable {
