@@ -7,7 +7,6 @@ struct EditItemView: View {
     let onSave: () -> Void
 
     @State private var priceText: String
-    @State private var condition: ItemCondition
     @State private var quantity: Int
     @State private var note: String
     @State private var status: ItemStatus
@@ -20,12 +19,26 @@ struct EditItemView: View {
         return quantity > 0
     }
 
+    private var condition: ItemCondition {
+        item.condition ?? .NM
+    }
+
+    private var hasFrontPhoto: Bool {
+        if let image1URL = item.image1URL, !image1URL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return true
+        }
+        return image1Data != nil
+    }
+
+    private var requiresFrontPhotoToActivate: Bool {
+        condition != .NM && !hasFrontPhoto
+    }
+
     init(item: MarketplaceItem, viewModel: StorefrontViewModel, onSave: @escaping () -> Void) {
         self.item = item
         self.viewModel = viewModel
         self.onSave = onSave
         _priceText = State(initialValue: String(format: "%.2f", item.priceCAD))
-        _condition = State(initialValue: item.condition ?? .NM)
         _quantity = State(initialValue: max(item.quantity, 1))
         _note = State(initialValue: item.note ?? "")
         _status = State(initialValue: item.status)
@@ -110,10 +123,12 @@ struct EditItemView: View {
             Stepper("Quantity: \(quantity)", value: $quantity, in: 1...999)
 
             if item.category.hasCondition {
-                Picker("Condition", selection: $condition) {
-                    ForEach(ItemCondition.allCases, id: \.self) { cond in
-                        Text(cond.displayName).tag(cond)
-                    }
+                HStack {
+                    Text("Condition")
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    Text(condition.displayName)
+                        .fontWeight(.medium)
                 }
             }
         }
@@ -123,10 +138,17 @@ struct EditItemView: View {
         Section("Status") {
             Picker("Status", selection: $status) {
                 Text("Active").tag(ItemStatus.active)
+                    .disabled(requiresFrontPhotoToActivate)
                 Text("Inactive").tag(ItemStatus.inactive)
                 Text("Sold").tag(ItemStatus.sold)
             }
             .pickerStyle(.segmented)
+
+            if requiresFrontPhotoToActivate {
+                Text("📷 Add a front photo to activate non-NM items")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
         }
     }
 
@@ -154,10 +176,10 @@ struct EditItemView: View {
             updated.condition = item.category.hasCondition ? condition : item.condition
             updated.quantity = quantity
             updated.note = note.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : note
-            updated.status = status
+            updated.status = requiresFrontPhotoToActivate && status == .active ? .inactive : status
             if status == .sold, updated.soldAt == nil {
                 updated.soldAt = Date()
-            } else if status != .sold {
+            } else if updated.status != .sold {
                 updated.soldAt = nil
             }
 
