@@ -31,7 +31,7 @@ class HomeViewModel {
             cardShows = MockDataService.shared.mockCardShows.filter { $0.shouldShowOnMap }
         } else {
             do {
-                vendors = try await SupabaseService.shared.fetchActiveVendors()
+                vendors = try await SupabaseService.shared.fetchApprovedVendors()
                 let allShows = try await SupabaseService.shared.fetchCardShows()
                 cardShows = allShows.filter { $0.shouldShowOnMap }
             } catch {

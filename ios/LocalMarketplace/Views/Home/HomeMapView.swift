@@ -124,9 +124,10 @@ struct HomeMapView: View {
                             showVendorPreview = true
                         } label: {
                             VStack(spacing: 2) {
-                                Image(systemName: "mappin.circle.fill")
+                                Image(systemName: vendor.isActive ? "mappin.circle.fill" : "mappin.circle")
                                     .font(.title)
-                                    .foregroundStyle(.teal)
+                                    .foregroundStyle(vendor.isActive ? .teal : .gray)
+                                    .opacity(vendor.isActive ? 1.0 : 0.7)
                                     .background(Circle().fill(.white).padding(-2))
                             }
                         }
@@ -171,9 +172,9 @@ struct HomeMapView: View {
             }
 
             if viewModel.filteredVendors.isEmpty && viewModel.filteredCardShows.isEmpty {
-                ContentUnavailableView("Nothing Nearby", systemImage: "storefront", description: Text("Check back later for active vendors and Limited Time Events."))
+                ContentUnavailableView("Nothing Nearby", systemImage: "storefront", description: Text("Check back later for vendors and Limited Time Events."))
             } else {
-                Section("Active Vendors") {
+                Section("Vendors") {
                     ForEach(viewModel.filteredVendors) { vendor in
                         Button {
                             selectedStorefrontVendor = vendor
@@ -359,6 +360,10 @@ struct VendorListRow: View {
                     Text(vendor.storeName)
                         .font(.headline)
                     VerifiedBadge()
+                    CategoryBadge(
+                        text: vendor.isActive ? "Live" : "Offline",
+                        style: vendor.isActive ? .active : .inactive
+                    )
                 }
 
                 HStack(spacing: 6) {

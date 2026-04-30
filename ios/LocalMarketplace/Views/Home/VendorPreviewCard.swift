@@ -44,6 +44,15 @@ struct VendorPreviewCard: View {
                             VerifiedBadge()
                         }
 
+                        HStack(spacing: 6) {
+                            Circle()
+                                .fill(vendor.isActive ? .green : .gray)
+                                .frame(width: 8, height: 8)
+                            Text(vendor.isActive ? "Live Now" : "Offline")
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(vendor.isActive ? .green : .secondary)
+                        }
+
                         ScrollView(.horizontal, showsIndicators: false) {
                             HStack(spacing: 6) {
                                 ForEach(vendor.categories, id: \.self) { cat in

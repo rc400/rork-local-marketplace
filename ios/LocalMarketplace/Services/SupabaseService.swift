@@ -159,6 +159,13 @@ class SupabaseService {
         }
     }
 
+    func fetchApprovedVendors() async throws -> [Vendor] {
+        let vendors: [Vendor] = try await client.select("vendors", filters: ["approved=eq.true", "is_disabled=eq.false"])
+        return vendors.filter { vendor in
+            vendor.hasRequiredFields && vendor.lat != nil && vendor.lng != nil
+        }
+    }
+
     func updateVendorActiveStatus(userID: String, isActive: Bool) async throws {
         let body = try JSONSerialization.data(withJSONObject: ["is_active": isActive])
         try await client.update("vendors", body: body, filters: ["user_id=eq.\(userID)"])
