@@ -59,15 +59,12 @@ struct BulkListingView: View {
                     showReview = true
                 }
             }
-            .navigationDestination(isPresented: $showReview) {
+            .fullScreenCover(isPresented: $showReview) {
                 ReviewQueueView(
                     queuedItems: $queuedItems,
                     vendorID: vendorID,
                     appState: appState,
-                    onComplete: {
-                        showReview = false
-                        dismiss()
-                    }
+                    onComplete: {}
                 )
             }
         }

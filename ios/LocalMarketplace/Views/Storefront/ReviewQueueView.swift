@@ -47,7 +47,7 @@ struct ReviewQueueView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Back") { dismiss() }
+                    Button("Close") { dismiss() }
                         .disabled(isPublishing)
                 }
             }
@@ -100,12 +100,13 @@ struct ReviewQueueView: View {
     }
 
     private func publishAll() {
+        let itemsToPublish = queuedItems
         isPublishing = true
         publishedCount = 0
         inactivePublishCount = 0
 
         Task {
-            for item in queuedItems {
+            for item in itemsToPublish {
                 guard let price = item.priceValue, price > 0 else { continue }
 
                 let itemID = UUID().uuidString
@@ -178,6 +179,7 @@ struct ReviewQueueView: View {
                 appState.showToast("Published \(publishedCount) items")
             }
             onComplete()
+            dismiss()
         }
     }
 }
