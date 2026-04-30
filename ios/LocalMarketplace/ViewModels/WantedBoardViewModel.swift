@@ -149,8 +149,34 @@ class WantedBoardViewModel {
     }
 
     func sendMessageToOwner(card: WantedCard, messageText: String) async {
-        guard let user = appState.currentUser, !messageText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+        guard let user = appState.currentUser else { return }
         guard user.id != card.userID else { return }
+
+        let trimmedNote = messageText.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        // Build structured inquiry from wanted card
+        let inquiryItem = InquiryItemData(
+            itemID: card.tcgCardID,
+            name: card.tcgCardName,
+            price: card.bidPrice,
+            condition: card.conditionsDisplay.isEmpty ? nil : card.conditionsDisplay,
+            quantity: 1,
+            imageURL: card.tcgCardImageURL.isEmpty ? nil : card.tcgCardImageURL
+        )
+        let inquiry = InquiryMessageData(
+            items: [inquiryItem],
+            note: trimmedNote.isEmpty ? nil : trimmedNote,
+            total: card.bidPrice
+        )
+
+        let messageBody: String
+        if let jsonData = try? JSONEncoder().encode(inquiry),
+           let jsonString = String(data: jsonData, encoding: .utf8) {
+            messageBody = "\(Message.inquiryPrefix)\(jsonString)"
+        } else {
+            // Fallback to plain text if encoding fails
+            messageBody = trimmedNote.isEmpty ? "I have \(card.tcgCardName) you're looking for!" : trimmedNote
+        }
 
         do {
             let conversation = try await SupabaseService.shared.fetchOrCreateConversation(currentUserID: user.id, otherUserID: card.userID)
@@ -158,7 +184,7 @@ class WantedBoardViewModel {
                 id: UUID().uuidString,
                 conversationID: conversation.id,
                 senderID: user.id,
-                body: messageText.trimmingCharacters(in: .whitespacesAndNewlines),
+                body: messageBody,
                 createdAt: Date()
             )
             try await SupabaseService.shared.sendMessage(message)

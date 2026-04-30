@@ -125,27 +125,33 @@ struct WantedCardDetailSheet: View {
     }
 
     private var messageArea: some View {
-        HStack(spacing: 10) {
-            TextField("Send a message...", text: $messageText, axis: .vertical)
-                .lineLimit(1...3)
-                .padding(12)
-                .background(Color(.secondarySystemGroupedBackground))
-                .clipShape(.rect(cornerRadius: 20))
+        VStack(spacing: 8) {
+            HStack(spacing: 10) {
+                TextField("Add a message (optional)...", text: $messageText, axis: .vertical)
+                    .lineLimit(1...3)
+                    .padding(12)
+                    .background(Color(.secondarySystemGroupedBackground))
+                    .clipShape(.rect(cornerRadius: 20))
 
-            Button {
-                Task {
-                    isSending = true
-                    await viewModel.sendMessageToOwner(card: card, messageText: messageText)
-                    messageText = ""
-                    isSending = false
-                    showMessageSentConfirmation = true
+                Button {
+                    Task {
+                        isSending = true
+                        await viewModel.sendMessageToOwner(card: card, messageText: messageText)
+                        messageText = ""
+                        isSending = false
+                        showMessageSentConfirmation = true
+                    }
+                } label: {
+                    Image(systemName: "arrow.up.circle.fill")
+                        .font(.title)
+                        .foregroundStyle(.teal)
                 }
-            } label: {
-                Image(systemName: "arrow.up.circle.fill")
-                    .font(.title)
-                    .foregroundStyle(.teal)
+                .disabled(isSending)
             }
-            .disabled(messageText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isSending)
+
+            Text("Sends a card inquiry with the listing details")
+                .font(.caption2)
+                .foregroundStyle(.tertiary)
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
