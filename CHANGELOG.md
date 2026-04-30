@@ -1,5 +1,88 @@
 # Local Marketplace — Changelog
 
+## Sprint 4 — Search Engine, Messaging, Bulk Listing, Storefront UX
+
+**Date:** April 29, 2026
+**Commits:** `f47d84c` through `2ecbf11` (26 commits)
+
+### Tier 2 Audit Fixes
+- `f47d84c` — N+1 query optimization: inbox and wanted board batch-fetch profiles/messages in single queries instead of per-item
+- `f47d84c` — Block user content filtering: `blockedUserIDs` set in AppState, blocked users hidden from map, inbox, and wanted board; dismiss after blocking
+
+### Bug Fixes from Testing
+- `a68217d` — Vendor go-live: pre-populate vendor row from application data (storeName, meetupAddress, categories)
+- `a68217d` — New items now show immediately after creation (onDismiss reload)
+- `a68217d` — Profile save fixed: proper JSON null handling + edit fields sync on appear
+- `ef7c463` — Vendor profile tap opens Edit Storefront instead of Edit Profile
+
+### Card Search Engine Overhaul
+- `3de52af` — Smart number detection: handles "098", "006/165", "#098" anywhere in query
+- `3de52af` — Popularity sorting: newest sets first (API-level), rarity ranking within sets (client-side), EN before JA
+- `3de52af` — Page size increased to 50
+- `2ce1e8c` — Wildcard number matching: "03" finds "TG03" via `number:*03`
+- `c26b0f5` — Clean display names: just name + number
+- `eb41748` — Set name detection: "Charizard Obsidian Flames" auto-filters by expansion
+- `eb41748` — Subtype detection: "Charizard ex", "Pikachu VMAX" filter by subtypes
+- `8ec77c0` — Local-first autofill: 1,025 Pokémon names embedded, instant suggestions as you type
+- `0b4f826` — Partial name wildcard: "pika" → `name:pika*` (plain text only matched full words)
+- `65f7a09` — Hide "No results" when suggestions are showing
+
+### Vendor Map
+- `28c24df` — Offline vendors visible on map: gray outline pin vs teal filled for active
+- `28c24df` — All approved vendors with complete storefronts + geocoded address now show
+- `28c24df` — VendorPreviewCard shows Live/Offline status badge
+
+### Messaging System
+- `5cecbf1` — Rich inquiry messages: visual card tiles in chat instead of plain text
+  - Horizontal scrollable card tiles with image, name, condition, price
+  - Tap any card tile for full-screen detail view
+  - Structured JSON format (`[INQUIRY]` prefix) — backward compatible
+  - Optional custom message alongside card tiles
+- `526d531` — Wanted board messages use same visual card inquiry format
+- `18b8079` — Distinct buy vs sell intents:
+  - Buy inquiries: teal bubble, cart icon, "Wants to Buy", "List $X"
+  - Sell offers: orange bubble, tag icon, "Offering to Sell", "Bid $X"
+- `1299c28` — List/Bid price labels on individual card tiles
+- `76c967a` — Chat timestamps: hour:minute only, no seconds
+- `4de39eb` — Inbox relative time: "Just now" for <1 min, no seconds
+
+### Bulk Listing System
+- `db37034` — Create listing opens as full screen
+- `ba30f57` — Create tab is a real standalone page (not a sheet/redirect hack)
+- `7907ed1` — Quick-Add Queue: search → select card → set condition/price → add to queue → repeat → review → publish all
+- `7907ed1` — Set Browse: browse expansions → tap cards in grid → add to queue → bulk publish
+- `7907ed1` — Entry point: "+" menu with Quick Add vs Detailed Listing options
+- `0c9607f` — Create tab shows Quick Add and Detailed Listing as prominent buttons
+- `7a3b0ea` — Review queue uses fullScreenCover (fixes dismiss bug)
+- `4a77d09` — Non-NM photo warning on publish, photo picker in review queue, inactive badge on storefront
+- `10b7446` — Can't set non-NM items active without photos; condition is read-only in edit
+
+### Storefront UX
+- `a56918a` — Condition labels: `[NM]`, `[LP]`, etc. shown before card names
+- `a56918a` — Long-press context menu: Edit, Mark as Sold, Delete (owner only)
+- `a56918a` — New EditItemView for editing existing listings
+- `a56918a` — Photo carousel in ItemDetailView with full-screen zoom on tap
+- `a56918a` — Mark as Sold works for bindered and unbindered items
+- `4a77d09` — Status picker: segmented Active/Inactive/Sold
+- `4a77d09` — INACTIVE badge overlay on storefront cards
+
+### Graded Card Slab Visual
+- `2ecbf11` — SlabFrameView: premium slab case visual for graded cards
+  - Metallic gradient border with drop shadow
+  - Grading label: company name in brand color + large grade number
+  - Dark inner area with centered card image
+  - Brand colors: PSA red, BGS blue, CGC gold, SGC green, ACE purple, TAG orange, MNT teal, KSA indigo
+  - Used in storefront cards, detail view, and binder grids
+
+### Remaining / Future
+- ❌ CSV bulk import (documented in plan, Phase 3)
+- ❌ Camera scanning for card recognition (Phase 4)
+- ❌ Scrydex sealed products endpoint not available (404)
+- ❌ Apple Developer Program still pending
+- ❌ RevenueCat production key needed (test key in place)
+
+---
+
 ## Sprint 3 — Live Backend, Card Search, Admin, Vendor Flow, Subscriptions
 
 **Date:** April 28, 2026
