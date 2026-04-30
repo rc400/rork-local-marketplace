@@ -5,6 +5,7 @@ struct TCGCardSearchView: View {
     @Binding var selectedCard: TCGCard?
     @State private var tcgService = PokemonTCGService.shared
     @State private var searchText = ""
+    @State private var isApplyingTopMatch = false
 
     var body: some View {
         NavigationStack {
@@ -35,6 +36,10 @@ struct TCGCardSearchView: View {
                     Task { await tcgService.searchCards(query: searchText) }
                 }
                 .onChange(of: searchText) { _, newValue in
+                    if isApplyingTopMatch {
+                        isApplyingTopMatch = false
+                        return
+                    }
                     tcgService.debouncedSearch(query: newValue)
                 }
 
@@ -82,7 +87,7 @@ struct TCGCardSearchView: View {
                 }
                 .padding()
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else if tcgService.searchResults.isEmpty && searchText.count >= 2 {
+            } else if tcgService.searchResults.isEmpty && searchText.count >= 3 {
                 VStack(spacing: 12) {
                     Image(systemName: "magnifyingglass")
                         .font(.largeTitle)
@@ -95,7 +100,7 @@ struct TCGCardSearchView: View {
                         .foregroundStyle(.tertiary)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else if searchText.count < 2 {
+            } else if searchText.count < 3 {
                 VStack(spacing: 12) {
                     Image(systemName: "sparkle.magnifyingglass")
                         .font(.system(size: 40))
@@ -103,7 +108,7 @@ struct TCGCardSearchView: View {
                     Text("Search for a Pokémon card")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
-                    Text("Type at least 2 characters to search")
+                    Text("Type 3 characters, or press return with 2")
                         .font(.caption)
                         .foregroundStyle(.tertiary)
                 }
@@ -111,6 +116,11 @@ struct TCGCardSearchView: View {
             } else {
                 ScrollView {
                     LazyVStack(spacing: 2) {
+                        if shouldShowTopMatches {
+                            topMatchesSection
+                                .padding(.bottom, 8)
+                        }
+
                         ForEach(tcgService.searchResults) { card in
                             CardSearchRow(card: card) {
                                 selectedCard = card
@@ -121,6 +131,60 @@ struct TCGCardSearchView: View {
                 }
             }
         }
+    }
+
+    private var shouldShowTopMatches: Bool {
+        searchText.count >= 3 && searchText.count <= 5 && !topMatchNames.isEmpty
+    }
+
+    private var topMatchNames: [String] {
+        var seenNames = Set<String>()
+        var names: [String] = []
+
+        for card in tcgService.searchResults {
+            let normalizedName = card.name.lowercased()
+            guard !normalizedName.isEmpty, !seenNames.contains(normalizedName) else { continue }
+
+            seenNames.insert(normalizedName)
+            names.append(card.name)
+
+            if names.count == 5 { break }
+        }
+
+        return names
+    }
+
+    private var topMatchesSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Top Matches")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 16)
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(topMatchNames, id: \.self) { name in
+                        Button {
+                            isApplyingTopMatch = true
+                            searchText = name
+                            Task { await tcgService.searchCards(query: name) }
+                        } label: {
+                            Text(name)
+                                .font(.subheadline.weight(.medium))
+                                .foregroundStyle(.teal)
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 7)
+                                .background(Color.teal.opacity(0.12))
+                                .clipShape(.capsule)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(.horizontal, 16)
+            }
+        }
+        .padding(.vertical, 10)
+        .background(Color(.systemGroupedBackground))
     }
 }
 

@@ -11,6 +11,8 @@ class PokemonTCGService {
 
     private var cache: [String: [TCGCard]] = [:]
     private var searchTask: Task<Void, Never>?
+    private var expansions: [ScrydexExpansionInfo] = []
+    private var expansionsLoadTask: Task<Void, Never>?
 
     private let session: URLSession = {
         let config = URLSessionConfiguration.default
@@ -20,18 +22,19 @@ class PokemonTCGService {
     }()
 
     private let baseURL = "https://api.scrydex.com/pokemon/v1/cards"
+    private let expansionsURL = "https://api.scrydex.com/pokemon/v1/expansions"
 
     func debouncedSearch(query: String) {
         searchTask?.cancel()
         let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard trimmed.count >= 2 else {
+        guard trimmed.count >= 3 else {
             searchResults = []
             searchError = nil
             isSearching = false
             return
         }
         searchTask = Task {
-            try? await Task.sleep(for: .milliseconds(400))
+            try? await Task.sleep(for: .milliseconds(300))
             guard !Task.isCancelled else { return }
             await searchCards(query: trimmed)
         }
@@ -44,7 +47,10 @@ class PokemonTCGService {
             return
         }
 
-        let cacheKey = trimmed.lowercased()
+        startExpansionLoadIfNeeded()
+
+        let scrydexQuery = buildScrydexQuery(trimmed)
+        let cacheKey = scrydexQuery.lowercased()
         if let cached = cache[cacheKey] {
             searchResults = cached
             searchError = nil
@@ -54,7 +60,7 @@ class PokemonTCGService {
         isSearching = true
         searchError = nil
 
-        let result = await fetchFromScrydex(query: trimmed)
+        let result = await fetchFromScrydex(scrydexQuery: scrydexQuery)
         switch result {
         case .success(let cards):
             cache[cacheKey] = cards
@@ -67,9 +73,37 @@ class PokemonTCGService {
         isSearching = false
     }
 
-    private func fetchFromScrydex(query: String) async -> Result<[TCGCard], SearchError> {
-        let scrydexQuery = buildScrydexQuery(query)
+    func loadExpansions() async {
+        guard expansions.isEmpty else { return }
 
+        guard let url = URL(string: expansionsURL) else { return }
+
+        var request = URLRequest(url: url)
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.setValue(Config.EXPO_PUBLIC_SCRYDEX_API_KEY, forHTTPHeaderField: "X-Api-Key")
+        request.setValue(Config.EXPO_PUBLIC_SCRYDEX_TEAM_ID, forHTTPHeaderField: "X-Team-ID")
+
+        do {
+            let (data, response) = try await session.data(for: request)
+            guard let http = response as? HTTPURLResponse, http.statusCode == 200 else { return }
+
+            let decoded = try JSONDecoder().decode(ScrydexExpansionsResponse.self, from: data)
+            expansions = decoded.data
+        } catch {
+            return
+        }
+    }
+
+    private func startExpansionLoadIfNeeded() {
+        guard expansions.isEmpty, expansionsLoadTask == nil else { return }
+
+        expansionsLoadTask = Task { [weak self] in
+            await self?.loadExpansions()
+            self?.expansionsLoadTask = nil
+        }
+    }
+
+    private func fetchFromScrydex(scrydexQuery: String) async -> Result<[TCGCard], SearchError> {
         var components = URLComponents(string: baseURL)
         components?.queryItems = [
             URLQueryItem(name: "q", value: scrydexQuery),
@@ -145,6 +179,8 @@ class PokemonTCGService {
 
         var nameParts: [String] = []
         var numberPart: String?
+        var expansionName: String?
+        var subtype: String?
 
         for token in tokens {
             if let cardNumber = cardNumber(from: token) {
@@ -154,21 +190,33 @@ class PokemonTCGService {
             }
         }
 
+        let expansionExtraction = extractExpansionName(from: nameParts)
+        nameParts = expansionExtraction.remainingTokens
+        expansionName = expansionExtraction.expansionName
+
+        let subtypeExtraction = extractSubtype(from: nameParts)
+        nameParts = subtypeExtraction.remainingTokens
+        subtype = subtypeExtraction.subtype
+
         let nameQuery = nameParts.joined(separator: " ")
 
-        var q: String
+        var queryParts: [String] = []
+        if !nameQuery.isEmpty {
+            queryParts.append(nameQuery)
+        }
+        if let subtype {
+            queryParts.append("subtypes:\(subtype)")
+        }
         if let num = numberPart {
             // Use wildcard prefix so "03" matches "TG03", "003", etc.
-            let numberFilter = "number:*\(num)"
-            if nameQuery.isEmpty {
-                q = numberFilter
-            } else {
-                q = "\(nameQuery) \(numberFilter)"
-            }
-        } else {
-            // Plain text search - matches across translations, returns both EN and JA
-            q = nameQuery
+            queryParts.append("number:*\(num)")
         }
+        if let expansionName {
+            queryParts.append("expansion.name:\"\(expansionName)\"")
+        }
+
+        // Plain text search matches across translations, returning both EN and JA.
+        var q = queryParts.joined(separator: " ")
 
         // Always exclude digital-only (TCG Pocket) cards
         q += " -expansion.is_online_only:true"
@@ -193,7 +241,61 @@ class PokemonTCGService {
         return rawNumber
     }
 
+    private func extractExpansionName(from tokens: [String]) -> (remainingTokens: [String], expansionName: String?) {
+        guard !tokens.isEmpty, !expansions.isEmpty else {
+            return (tokens, nil)
+        }
 
+        for windowSize in stride(from: tokens.count, through: 1, by: -1) {
+            guard tokens.count >= windowSize else { continue }
+
+            for startIndex in 0...(tokens.count - windowSize) {
+                let endIndex = startIndex + windowSize
+                let candidate = tokens[startIndex..<endIndex].joined(separator: " ")
+
+                if let expansion = expansions.first(where: { $0.name.caseInsensitiveCompare(candidate) == .orderedSame }) {
+                    var remaining = tokens
+                    remaining.removeSubrange(startIndex..<endIndex)
+                    return (remaining, expansion.name)
+                }
+            }
+        }
+
+        return (tokens, nil)
+    }
+
+    private func extractSubtype(from tokens: [String]) -> (remainingTokens: [String], subtype: String?) {
+        guard !tokens.isEmpty else {
+            return (tokens, nil)
+        }
+
+        if tokens.count >= 2 {
+            let suffix = tokens.suffix(2).joined(separator: " ")
+            if suffix.caseInsensitiveCompare("TAG TEAM") == .orderedSame {
+                var remaining = tokens
+                remaining.removeLast(2)
+                return (remaining, "\"tag team\"")
+            }
+        }
+
+        guard let lastToken = tokens.last else {
+            return (tokens, nil)
+        }
+
+        let normalized = lastToken.lowercased()
+        let knownSubtypes = ["ex", "gx", "v", "vmax", "vstar", "break"]
+        guard knownSubtypes.contains(normalized) else {
+            return (tokens, nil)
+        }
+
+        if normalized == "v", tokens.count == 1 {
+            return (tokens, nil)
+        }
+
+        var remaining = tokens
+        remaining.removeLast()
+        return (remaining, normalized)
+    }
 
     private func sortCardsBySearchPreference(_ cards: [TCGCard]) -> [TCGCard] {
         cards.enumerated().sorted { lhs, rhs in
@@ -313,6 +415,15 @@ nonisolated enum SearchError: Error, Sendable {
 
 nonisolated struct ScrydexResponse: Codable, Sendable {
     let data: [ScrydexCard]
+}
+
+nonisolated struct ScrydexExpansionsResponse: Codable, Sendable {
+    let data: [ScrydexExpansionInfo]
+}
+
+nonisolated struct ScrydexExpansionInfo: Codable, Sendable, Identifiable {
+    let id: String
+    let name: String
 }
 
 nonisolated struct ScrydexCard: Codable, Sendable {
