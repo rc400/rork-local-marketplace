@@ -122,10 +122,11 @@ struct EditItemView: View {
     private var statusSection: some View {
         Section("Status") {
             Picker("Status", selection: $status) {
-                ForEach(ItemStatus.allCases, id: \.self) { status in
-                    Text(status.rawValue.capitalized).tag(status)
-                }
+                Text("Active").tag(ItemStatus.active)
+                Text("Inactive").tag(ItemStatus.inactive)
+                Text("Sold").tag(ItemStatus.sold)
             }
+            .pickerStyle(.segmented)
         }
     }
 

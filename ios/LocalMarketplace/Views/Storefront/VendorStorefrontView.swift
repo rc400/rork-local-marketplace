@@ -648,19 +648,8 @@ struct HorizontalItemCard: View {
                 }
 
                 if isHidden && isOwnStore {
-                    VStack {
-                        Spacer()
-                        HStack {
-                            Text("Hidden")
-                                .font(.caption2.weight(.bold))
-                                .padding(.horizontal, 6)
-                                .padding(.vertical, 3)
-                                .background(.ultraThinMaterial)
-                                .clipShape(.capsule)
-                                .padding(6)
-                            Spacer()
-                        }
-                    }
+                    InactiveItemBadge()
+                        .padding(6)
                 }
             }
 
@@ -720,6 +709,18 @@ struct HorizontalItemCard: View {
                 }
             }
         }
+    }
+}
+
+private struct InactiveItemBadge: View {
+    var body: some View {
+        Text("Inactive")
+            .font(.caption2.weight(.bold))
+            .padding(.horizontal, 7)
+            .padding(.vertical, 4)
+            .background(Color.orange.opacity(0.18))
+            .foregroundStyle(.orange)
+            .clipShape(.capsule)
     }
 }
 
@@ -866,17 +867,8 @@ struct ItemCard: View {
                 }
 
                 if isHidden && isOwnStore && !isSelected {
-                    VStack {
-                        Spacer()
-                        Text("Hidden")
-                            .font(.caption2.weight(.bold))
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 3)
-                            .background(.ultraThinMaterial)
-                            .clipShape(.capsule)
-                            .padding(6)
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                    InactiveItemBadge()
+                        .padding(6)
                 }
             }
 

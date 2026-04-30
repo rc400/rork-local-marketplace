@@ -1,4 +1,5 @@
 import SwiftUI
+import PhotosUI
 
 struct ReviewQueueView: View {
     @Environment(\.dismiss) private var dismiss
@@ -9,9 +10,15 @@ struct ReviewQueueView: View {
 
     @State private var isPublishing = false
     @State private var publishedCount = 0
+    @State private var inactivePublishCount = 0
+    @State private var showPhotoWarning = false
 
     private var canPublish: Bool {
         !queuedItems.isEmpty && queuedItems.allSatisfy(\.isValid) && !isPublishing
+    }
+
+    private var hasNonNMItems: Bool {
+        queuedItems.contains { $0.condition != .NM }
     }
 
     var body: some View {
@@ -47,6 +54,14 @@ struct ReviewQueueView: View {
             .safeAreaInset(edge: .bottom) {
                 publishBar
             }
+            .alert("Some items need photos", isPresented: $showPhotoWarning) {
+                Button("Publish Anyway") {
+                    publishAll()
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("Items not in Near Mint condition should have photos. Items without photos will be marked as inactive until photos are added.")
+            }
         }
     }
 
@@ -60,7 +75,11 @@ struct ReviewQueueView: View {
             }
 
             Button {
-                publishAll()
+                if hasNonNMItems {
+                    showPhotoWarning = true
+                } else {
+                    publishAll()
+                }
             } label: {
                 Label("Publish All", systemImage: "paperplane.fill")
                     .frame(maxWidth: .infinity)
@@ -83,13 +102,44 @@ struct ReviewQueueView: View {
     private func publishAll() {
         isPublishing = true
         publishedCount = 0
+        inactivePublishCount = 0
 
         Task {
             for item in queuedItems {
                 guard let price = item.priceValue, price > 0 else { continue }
 
+                let itemID = UUID().uuidString
+                var image1URL: String?
+                var image2URL: String?
+
+                if let data = item.image1Data, !appState.isMockMode {
+                    do {
+                        image1URL = try await SupabaseService.shared.uploadImage(bucket: "items", folder: itemID, imageData: data)
+                    } catch {
+                        isPublishing = false
+                        appState.showToast("Failed to upload image", isError: true)
+                        return
+                    }
+                }
+
+                if let data = item.image2Data, !appState.isMockMode {
+                    do {
+                        image2URL = try await SupabaseService.shared.uploadImage(bucket: "items", folder: "\(itemID)/back", imageData: data)
+                    } catch {
+                        isPublishing = false
+                        appState.showToast("Failed to upload image", isError: true)
+                        return
+                    }
+                }
+
+                // Non-NM cards need a front photo before customers can see them.
+                let publishStatus: ItemStatus = item.condition != .NM && !item.hasPhotos ? .inactive : .active
+                if publishStatus == .inactive {
+                    inactivePublishCount += 1
+                }
+
                 let marketplaceItem = MarketplaceItem(
-                    id: UUID().uuidString,
+                    id: itemID,
                     vendorID: vendorID,
                     binderID: item.binderID,
                     name: item.card.name,
@@ -97,7 +147,9 @@ struct ReviewQueueView: View {
                     category: .single,
                     condition: item.condition,
                     note: item.note.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : item.note,
-                    status: .active,
+                    status: publishStatus,
+                    image1URL: image1URL,
+                    image2URL: image2URL,
                     tcgCardID: item.card.id,
                     tcgCardName: item.card.name,
                     tcgCardNumber: item.card.number,
@@ -120,7 +172,11 @@ struct ReviewQueueView: View {
 
             queuedItems.removeAll()
             isPublishing = false
-            appState.showToast("Published \(publishedCount) items")
+            if inactivePublishCount > 0 {
+                appState.showToast("\(inactivePublishCount) items published as inactive — add photos to activate")
+            } else {
+                appState.showToast("Published \(publishedCount) items")
+            }
             onComplete()
         }
     }
@@ -155,6 +211,13 @@ private struct ReviewQueueRow: View {
             }
             .pickerStyle(.segmented)
 
+            if item.condition.requiresImages {
+                HStack(spacing: 10) {
+                    QueuePhotoPickerButton(label: "Front Photo", imageData: $item.image1Data)
+                    QueuePhotoPickerButton(label: "Back Photo (optional)", imageData: $item.image2Data)
+                }
+            }
+
             HStack(spacing: 12) {
                 HStack(spacing: 4) {
                     Text("$")
@@ -176,7 +239,7 @@ private struct ReviewQueueRow: View {
                 .textFieldStyle(.roundedBorder)
 
             if item.condition.requiresImages && !item.hasPhotos {
-                Text("📷 Photos required for non-NM")
+                Text("Photos required for non-NM")
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.orange)
             }
@@ -186,6 +249,56 @@ private struct ReviewQueueRow: View {
         .overlay {
             RoundedRectangle(cornerRadius: 12)
                 .stroke(item.isValid ? Color.clear : Color.red, lineWidth: 1.5)
+        }
+    }
+}
+
+private struct QueuePhotoPickerButton: View {
+    let label: String
+    @Binding var imageData: Data?
+
+    @State private var selectedItem: PhotosPickerItem?
+
+    var body: some View {
+        VStack(spacing: 8) {
+            photoPreview
+
+            PhotosPicker(selection: $selectedItem, matching: .images) {
+                Label(label, systemImage: "photo.on.rectangle.angled")
+                    .font(.caption.weight(.semibold))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.bordered)
+            .tint(.teal)
+            .onChange(of: selectedItem) { _, newValue in
+                Task {
+                    if let data = try? await newValue?.loadTransferable(type: Data.self) {
+                        imageData = data
+                    }
+                }
+            }
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    @ViewBuilder
+    private var photoPreview: some View {
+        if let imageData, let uiImage = UIImage(data: imageData) {
+            Image(uiImage: uiImage)
+                .resizable()
+                .aspectRatio(contentMode: .fill)
+                .frame(width: 54, height: 72)
+                .clipShape(.rect(cornerRadius: 8))
+        } else {
+            RoundedRectangle(cornerRadius: 8)
+                .fill(Color(.tertiarySystemGroupedBackground))
+                .frame(width: 54, height: 72)
+                .overlay {
+                    Image(systemName: "photo")
+                        .foregroundStyle(.secondary)
+                }
         }
     }
 }

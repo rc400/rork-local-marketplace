@@ -8,7 +8,9 @@ struct QueuedItem: Identifiable {
     var quantity: Int
     var binderID: String?
     var note: String = ""
-    var hasPhotos: Bool = false
+    var image1Data: Data?
+    var image2Data: Data?
+    var hasPhotos: Bool { image1Data != nil }
 
     var priceValue: Double? { Double(price) }
     var isValid: Bool { (priceValue ?? 0) > 0 }
