@@ -67,7 +67,7 @@ struct ConversationRow: View {
                     Spacer()
 
                     if let date = conversation.lastMessage?.createdAt {
-                        Text(date, style: .relative)
+                        Text(relativeTime(from: date))
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
@@ -82,6 +82,17 @@ struct ConversationRow: View {
             }
         }
         .padding(.vertical, 4)
+    }
+
+    private func relativeTime(from date: Date) -> String {
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .abbreviated
+        formatter.dateTimeStyle = .named
+        let interval = Date().timeIntervalSince(date)
+        if interval < 60 {
+            return "Just now"
+        }
+        return formatter.localizedString(for: date, relativeTo: Date())
     }
 
     private func lastMessagePreview(_ message: Message) -> String {
