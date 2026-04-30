@@ -14,3 +14,18 @@ nonisolated struct Message: Codable, Identifiable, Sendable, Hashable {
         case createdAt = "created_at"
     }
 }
+
+extension Message {
+    static let inquiryPrefix = "[INQUIRY]"
+
+    var isInquiry: Bool {
+        body.hasPrefix(Self.inquiryPrefix)
+    }
+
+    var inquiryData: InquiryMessageData? {
+        guard isInquiry else { return nil }
+        let jsonString = String(body.dropFirst(Self.inquiryPrefix.count))
+        guard let data = jsonString.data(using: .utf8) else { return nil }
+        return try? JSONDecoder().decode(InquiryMessageData.self, from: data)
+    }
+}

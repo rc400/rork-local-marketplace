@@ -25,11 +25,19 @@ struct ChatView: View {
                 ScrollView {
                     LazyVStack(spacing: 8) {
                         ForEach(viewModel.messages) { message in
-                            MessageBubble(
-                                message: message,
-                                isCurrentUser: viewModel.isCurrentUser(message.senderID)
-                            )
-                            .id(message.id)
+                            if message.isInquiry, let inquiry = message.inquiryData {
+                                InquiryMessageBubble(
+                                    inquiry: inquiry,
+                                    isCurrentUser: viewModel.isCurrentUser(message.senderID)
+                                )
+                                .id(message.id)
+                            } else {
+                                MessageBubble(
+                                    message: message,
+                                    isCurrentUser: viewModel.isCurrentUser(message.senderID)
+                                )
+                                .id(message.id)
+                            }
                         }
                     }
                     .padding(.horizontal, 16)

@@ -6,6 +6,9 @@ struct InquiryCartView: View {
     let appState: AppState
 
     @State private var messagesVM: MessagesViewModel
+    @State private var customNote: String = ""
+
+    private let defaultNote = "Hi! I’m interested in these items. Are they still available?"
 
     init(viewModel: StorefrontViewModel, appState: AppState) {
         self.viewModel = viewModel
@@ -37,23 +40,34 @@ struct InquiryCartView: View {
                 }
 
                 VStack(spacing: 12) {
-                    Text("Message Preview")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(.secondary)
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                    VStack(alignment: .leading, spacing: 8) {
+                        TextField("Add a message (optional)...", text: $customNote, prompt: Text(defaultNote), axis: .vertical)
+                            .lineLimit(2...4)
+                            .padding(12)
+                            .background(Color(.secondarySystemGroupedBackground))
+                            .clipShape(.rect(cornerRadius: 12))
 
-                    Text(viewModel.cartSummaryMessage)
-                        .font(.caption)
-                        .padding(12)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(Color(.secondarySystemGroupedBackground))
-                        .clipShape(.rect(cornerRadius: 12))
+                        Button("Use default message") {
+                            customNote = defaultNote
+                        }
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.teal)
+                    }
+
+                    HStack {
+                        Text("Total")
+                            .font(.subheadline.weight(.semibold))
+                        Spacer()
+                        Text(formattedTotal)
+                            .font(.subheadline.weight(.bold))
+                    }
 
                     Button {
                         Task {
+                            let messageBody = makeInquiryMessageBody()
                             let didSend = await messagesVM.sendInquiry(
                                 otherUserID: viewModel.vendor?.userID ?? "",
-                                cartMessage: viewModel.cartSummaryMessage
+                                cartMessage: messageBody
                             )
                             if didSend {
                                 viewModel.clearCart()
@@ -146,6 +160,37 @@ struct InquiryCartView: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
+    }
+
+    private var formattedTotal: String {
+        String(format: "$%.2f CAD", cartTotal)
+    }
+
+    private var cartTotal: Double {
+        viewModel.inquiryCart.reduce(0.0) { $0 + $1.item.priceCAD * Double($1.quantity) }
+    }
+
+    private func makeInquiryMessageBody() -> String {
+        let inquiryItems = viewModel.inquiryCart.map { cartItem in
+            InquiryItemData(
+                itemID: cartItem.item.id,
+                name: cartItem.item.displayName,
+                price: cartItem.item.priceCAD,
+                condition: cartItem.item.condition?.shortName,
+                quantity: cartItem.quantity,
+                imageURL: cartItem.item.primaryImageURL
+            )
+        }
+        let trimmedNote = customNote.trimmingCharacters(in: .whitespacesAndNewlines)
+        let inquiry = InquiryMessageData(
+            items: inquiryItems,
+            note: trimmedNote.isEmpty ? nil : trimmedNote,
+            total: cartTotal
+        )
+        let encoder = JSONEncoder()
+        let jsonData = try! encoder.encode(inquiry)
+        let jsonString = String(data: jsonData, encoding: .utf8)!
+        return "\(Message.inquiryPrefix)\(jsonString)"
     }
 
     private func checkEmpty() {

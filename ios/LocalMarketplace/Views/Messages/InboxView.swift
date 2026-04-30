@@ -74,7 +74,7 @@ struct ConversationRow: View {
                 }
 
                 if let lastMessage = conversation.lastMessage {
-                    Text(lastMessage.body)
+                    Text(lastMessagePreview(lastMessage))
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
@@ -82,5 +82,12 @@ struct ConversationRow: View {
             }
         }
         .padding(.vertical, 4)
+    }
+
+    private func lastMessagePreview(_ message: Message) -> String {
+        if message.isInquiry, let data = message.inquiryData {
+            return "📋 Card Inquiry (\(data.items.count) item\(data.items.count == 1 ? "" : "s"))"
+        }
+        return message.body
     }
 }
